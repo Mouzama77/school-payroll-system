@@ -1,13 +1,14 @@
-from datetime import date, datetime
+from datetime import date
 from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy import extract
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.attendance import Attendance, AttendanceStatus
 from app.models.employee import Employee
-from app.schemas.attendance import AttendanceCreate, AttendanceReportResponse
+from app.schemas.attendance import AttendanceCreate, MonthlyAttendanceResponse
 
 
 class AttendanceService:
@@ -34,22 +35,23 @@ class AttendanceService:
         db: Session,
         employee_id: UUID,
         attendance_date: date,
-        attendance_id: UUID | None = None,
     ) -> None:
-        query = db.query(Attendance).filter(
-            Attendance.employee_id == employee_id,
-            Attendance.date == attendance_date,
+        existing = (
+            db.query(Attendance)
+            .filter(
+                Attendance.employee_id == employee_id,
+                Attendance.date == attendance_date,
+            )
+            .first()
         )
-        if attendance_id is not None:
-            query = query.filter(Attendance.id != attendance_id)
-        if query.first():
+        if existing:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Attendance already exists for this employee on this date",
             )
 
     @staticmethod
-    def create(db: Session, payload: AttendanceCreate) -> Attendance:
+    def mark_attendance(db: Session, payload: AttendanceCreate) -> Attendance:
         AttendanceService.validate_employee_exists(db, payload.employee_id)
         AttendanceService.validate_date_not_future(payload.date)
         AttendanceService.validate_unique_per_day(
@@ -64,17 +66,24 @@ class AttendanceService:
             status=payload.status,
         )
         db.add(attendance)
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Attendance already exists for this employee on this date",
+            )
         db.refresh(attendance)
         return attendance
 
     @staticmethod
-    def get_monthly_report(
+    def get_monthly_attendance(
         db: Session,
         employee_id: UUID,
         month: int,
         year: int,
-    ) -> AttendanceReportResponse:
+    ) -> MonthlyAttendanceResponse:
         AttendanceService.validate_employee_exists(db, employee_id)
 
         records = (
@@ -100,7 +109,7 @@ class AttendanceService:
             ),
         }
 
-        return AttendanceReportResponse(
+        return MonthlyAttendanceResponse(
             employee_id=employee_id,
             month=month,
             year=year,

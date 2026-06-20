@@ -34,7 +34,7 @@ class AttendanceSummary(BaseModel):
     total_half_days: int
 
 
-class AttendanceReportResponse(BaseModel):
+class MonthlyAttendanceResponse(BaseModel):
     employee_id: UUID
     month: int
     year: int

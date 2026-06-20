@@ -7,8 +7,8 @@ from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.schemas.attendance import (
     AttendanceCreate,
-    AttendanceReportResponse,
     AttendanceResponse,
+    MonthlyAttendanceResponse,
 )
 from app.services.attendance_service import AttendanceService
 
@@ -20,23 +20,23 @@ router = APIRouter()
     response_model=AttendanceResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def create_attendance(
+def mark_attendance(
     payload: AttendanceCreate,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    return AttendanceService.create(db, payload)
+    return AttendanceService.mark_attendance(db, payload)
 
 
-@router.get("/{employee_id}", response_model=AttendanceReportResponse)
-def get_monthly_attendance_report(
+@router.get("/{employee_id}", response_model=MonthlyAttendanceResponse)
+def get_monthly_attendance(
     employee_id: UUID,
     month: int = Query(..., ge=1, le=12),
     year: int = Query(..., ge=2000),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    return AttendanceService.get_monthly_report(
+    return AttendanceService.get_monthly_attendance(
         db=db,
         employee_id=employee_id,
         month=month,
