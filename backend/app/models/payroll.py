@@ -1,7 +1,7 @@
 ﻿import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import String, Float, Integer, ForeignKey
+from sqlalchemy import Float, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -10,6 +10,13 @@ from app.db.session import Base
 
 class Payroll(Base):
     __tablename__ = "payrolls"
+    __table_args__ = (
+        UniqueConstraint(
+            "employee_id",
+            "month",
+            name="uq_payroll_employee_month",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -26,6 +33,8 @@ class Payroll(Base):
     base_salary: Mapped[float] = mapped_column(Float, nullable=False)
     total_working_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     days_present: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    total_absent: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    total_half_days: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     leave_deductions: Mapped[float] = mapped_column(
         Float,
         default=0,
