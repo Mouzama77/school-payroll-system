@@ -5,7 +5,7 @@ from sqlalchemy import engine_from_config, pool
 
 from app.core.config import settings
 from app.db.session import Base
-from app.models import Role, Department
+from app.models import Attendance, Department, Employee, Leave, Payroll, Role, User
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
