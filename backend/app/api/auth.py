@@ -2,14 +2,12 @@
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
-from app.schemas.auth import RegisterSchema, LoginSchema
 from app.auth.hashing import hash_password, verify_password
 from app.auth.jwt import create_access_token
 from app.db.session import get_db
-from app.db.session import SessionLocal
 from app.models.user import User
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter()
 
 
 class RegisterRequest(BaseModel):
@@ -23,15 +21,7 @@ class LoginRequest(BaseModel):
     password: str
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-@router.post("/registerinput")
+@router.post("/register")
 async def register_input(
     payload: RegisterRequest,
     db: Session = Depends(get_db),
@@ -62,7 +52,7 @@ async def register_input(
     }
 
 
-@router.post("/loginverify")
+@router.post("/login")
 async def login_verify(
     payload: LoginRequest,
     db: Session = Depends(get_db),
