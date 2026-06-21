@@ -5,8 +5,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.auth.dependencies import get_current_user, require_roles
+from app.auth.roles import ADMIN, MANAGEMENT_ROLES
 from app.db.session import get_db
 from app.models.department import Department
+from app.models.user import User
 from app.schemas.department import (
     DepartmentCreate,
     DepartmentResponse,
@@ -89,6 +92,7 @@ def list_departments(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(*MANAGEMENT_ROLES)),
 ):
     return get_departments(db=db, skip=skip, limit=limit)
 
@@ -97,6 +101,7 @@ def list_departments(
 def read_department(
     department_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(*MANAGEMENT_ROLES)),
 ):
     department = get_department_by_id(db=db, department_id=department_id)
     if not department:
@@ -111,6 +116,7 @@ def read_department(
 def create_department_endpoint(
     department_data: DepartmentCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(ADMIN)),
 ):
     return create_department(db=db, department_data=department_data)
 
@@ -120,6 +126,7 @@ def update_department_endpoint(
     department_id: UUID,
     department_data: DepartmentUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(ADMIN)),
 ):
     department = get_department_by_id(db=db, department_id=department_id)
     if not department:
@@ -138,6 +145,7 @@ def update_department_endpoint(
 def delete_department_endpoint(
     department_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(ADMIN)),
 ):
     department = get_department_by_id(db=db, department_id=department_id)
     if not department:

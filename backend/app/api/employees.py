@@ -4,10 +4,18 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.auth.dependencies import (
+    assert_employee_access,
+    get_current_user,
+    get_employee_for_user,
+    require_roles,
+)
+from app.auth.roles import MANAGEMENT_ROLES
 from app.db.session import get_db
 from app.models.department import Department
 from app.models.employee import Employee
 from app.models.role import Role
+from app.models.user import User
 from app.schemas.employee import EmployeeCreate, EmployeeResponse, EmployeeUpdate
 
 router = APIRouter()
@@ -141,6 +149,7 @@ def delete_employee(db: Session, employee: Employee) -> None:
 def create_employee_endpoint(
     employee_data: EmployeeCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(*MANAGEMENT_ROLES)),
 ):
     return create_employee(db=db, employee_data=employee_data)
 
@@ -150,15 +159,22 @@ def list_employees(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    return get_employees(db=db, skip=skip, limit=limit)
+    if current_user.role in MANAGEMENT_ROLES:
+        return get_employees(db=db, skip=skip, limit=limit)
+
+    employee = get_employee_for_user(db, current_user)
+    return [employee]
 
 
 @router.get("/{employee_id}", response_model=EmployeeResponse)
 def read_employee(
     employee_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
+    assert_employee_access(db, current_user, employee_id)
     employee = get_employee_or_404(db=db, employee_id=employee_id)
     return employee
 
@@ -168,6 +184,7 @@ def update_employee_endpoint(
     employee_id: UUID,
     employee_data: EmployeeUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(*MANAGEMENT_ROLES)),
 ):
     employee = get_employee_or_404(db=db, employee_id=employee_id)
     return update_employee(db=db, employee=employee, employee_data=employee_data)
@@ -177,6 +194,7 @@ def update_employee_endpoint(
 def delete_employee_endpoint(
     employee_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(*MANAGEMENT_ROLES)),
 ):
     employee = get_employee_or_404(db=db, employee_id=employee_id)
     delete_employee(db=db, employee=employee)

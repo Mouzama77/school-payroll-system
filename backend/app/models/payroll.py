@@ -27,7 +27,8 @@ class Payroll(Base):
     employee_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("employees.id"),
-        nullable=False
+        nullable=False,
+        index=True,
     )
     month: Mapped[str] = mapped_column(String(7), nullable=False)
     base_salary: Mapped[float] = mapped_column(Float, nullable=False)

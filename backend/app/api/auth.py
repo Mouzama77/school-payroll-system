@@ -1,47 +1,33 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
+﻿from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.auth.hashing import hash_password, verify_password
-from app.auth.jwt import create_access_token
+from app.auth.dependencies import get_current_user, get_employee_for_user
 from app.db.session import get_db
 from app.models.user import User
+from app.schemas.auth import (
+    ChangePasswordRequest,
+    ForgotPasswordRequest,
+    LoginRequest,
+    LoginResponse,
+    RegisterRequest,
+    ResetPasswordRequest,
+)
+from app.services.auth_service import AuthService
 
 router = APIRouter()
 
 
-class RegisterRequest(BaseModel):
-    email: EmailStr
-    password: str
-    role: str = "employee"
-
-
-class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str
-
-
-@router.post("/register")
-async def register_input(
+@router.post("/register", status_code=201)
+async def register_user(
     payload: RegisterRequest,
     db: Session = Depends(get_db),
 ):
-    existing_user = db.query(User).filter(User.email == payload.email).first()
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered",
-        )
-
-    user = User(
+    user = AuthService.register_employee_user(
+        db=db,
         email=str(payload.email),
-        hashed_password=hash_password(payload.password),
+        password=payload.password,
         role=payload.role,
     )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-
     return {
         "message": "User registered successfully",
         "user": {
@@ -52,22 +38,70 @@ async def register_input(
     }
 
 
-@router.post("/login")
-async def login_verify(
+@router.post("/login", response_model=LoginResponse)
+async def login_user(
     payload: LoginRequest,
     db: Session = Depends(get_db),
 ):
-    user = db.query(User).filter(User.email == str(payload.email)).first()
-    if not user or not verify_password(payload.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
-        )
-
-    access_token = create_access_token(
-        {"sub": str(user.id), "email": user.email}
+    user = AuthService.authenticate_user(
+        db=db,
+        email=str(payload.email),
+        password=payload.password,
     )
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
+    return AuthService.build_login_response(user)
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    payload: ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    return AuthService.request_password_reset(db=db, email=str(payload.email))
+
+
+@router.post("/reset-password")
+async def reset_password(
+    payload: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    AuthService.reset_password(
+        db=db,
+        token=payload.token,
+        new_password=payload.new_password,
+    )
+    return {"message": "Password reset successfully"}
+
+
+@router.post("/change-password")
+async def change_password(
+    payload: ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    AuthService.change_password(
+        db=db,
+        user=current_user,
+        current_password=payload.current_password,
+        new_password=payload.new_password,
+    )
+    return {"message": "Password changed successfully"}
+
+
+@router.get("/me")
+async def get_current_profile(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    profile = {
+        "id": str(current_user.id),
+        "email": current_user.email,
+        "role": current_user.role,
+        "must_change_password": current_user.must_change_password,
+        "employee_id": None,
     }
+
+    if current_user.role == "employee":
+        employee = get_employee_for_user(db, current_user)
+        profile["employee_id"] = str(employee.id)
+
+    return profile

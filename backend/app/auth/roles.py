@@ -1,0 +1,6 @@
+ADMIN = "admin"
+HR = "hr"
+EMPLOYEE = "employee"
+
+VALID_ROLES = {ADMIN, HR, EMPLOYEE}
+MANAGEMENT_ROLES = {ADMIN, HR}

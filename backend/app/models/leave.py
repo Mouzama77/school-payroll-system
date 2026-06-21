@@ -1,35 +1,56 @@
-﻿import uuid
-from datetime import datetime, date, timezone
+import enum
+import uuid
 
-from sqlalchemy import String, Date, Text, ForeignKey
+from sqlalchemy import Column, Date, DateTime, Enum, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.sql import func
 
 from app.db.session import Base
+
+
+class LeaveStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+
+class LeaveType(str, enum.Enum):
+    CASUAL = "CASUAL"
+    SICK = "SICK"
+    PAID = "PAID"
+    UNPAID = "UNPAID"
 
 
 class Leave(Base):
     __tablename__ = "leaves"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4
-    )
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
-    employee_id: Mapped[uuid.UUID] = mapped_column(
+    employee_id = Column(
         UUID(as_uuid=True),
         ForeignKey("employees.id"),
-        nullable=False
+        nullable=False,
+        index=True,
     )
-    start_date: Mapped[date] = mapped_column(Date, nullable=False)
-    end_date: Mapped[date] = mapped_column(Date, nullable=False)
-    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(
-        String(20),
-        default="pending",
-        nullable=False
+
+    leave_type = Column(Enum(LeaveType, name="leave_type"), nullable=False)
+    status = Column(
+        Enum(LeaveStatus, name="leave_status"),
+        default=LeaveStatus.PENDING,
+        nullable=False,
+        index=True,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        default=lambda: datetime.now(timezone.utc)
+
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+
+    reason = Column(Text, nullable=True)
+
+    approved_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())

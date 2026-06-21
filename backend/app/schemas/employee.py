@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -27,7 +27,7 @@ class EmployeeUpdate(BaseModel):
 
 
 class EmployeeResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
     id: UUID
     first_name: str
@@ -35,8 +35,8 @@ class EmployeeResponse(BaseModel):
     email: EmailStr
     phone: str | None = None
     salary: float
-    joining_date: date = Field(default_factory=date.today)
+    joining_date: date = Field(validation_alias="join_date")
     department_id: UUID
     role_id: UUID
+    status: str = "active"
     created_at: datetime
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
