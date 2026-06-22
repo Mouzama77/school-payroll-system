@@ -11,3 +11,8 @@ export async function getMonthlyAttendance(employeeId, month, year) {
   })
   return data
 }
+
+export async function overrideAttendance(attendanceId, status, reason) {
+  const { data } = await api.put(`/attendance/${attendanceId}/override`, { status, reason })
+  return data
+}

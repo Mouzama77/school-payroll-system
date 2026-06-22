@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 
+import { getAuditLogs } from '../api/audit_logs'
 import {
   getAdminDashboard,
   getEmployeeDashboard,
@@ -45,6 +46,16 @@ function formatDate(value) {
   }).format(new Date(value))
 }
 
+function formatDatetime(iso) {
+  if (!iso) return '—'
+  return new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(iso))
+}
+
 function SummaryPanel({ title, children }) {
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -63,11 +74,44 @@ function MiniMetric({ label, value }) {
   )
 }
 
+const ACTION_BADGE = {
+  LEAVE_APPROVED: 'bg-green-100 text-green-800',
+  LEAVE_REJECTED: 'bg-red-100 text-red-800',
+  ATTENDANCE_OVERRIDDEN: 'bg-blue-100 text-blue-700',
+}
+
+function RecentActivity({ logs }) {
+  if (!logs || logs.length === 0) {
+    return <p className="text-sm text-slate-500">No recent activity.</p>
+  }
+  return (
+    <ul className="space-y-2">
+      {logs.map((log) => (
+        <li
+          key={log.id}
+          className="flex items-start gap-3 rounded-lg border border-slate-200 px-3 py-2"
+        >
+          <span
+            className={`mt-0.5 flex-shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${ACTION_BADGE[log.action] ?? 'bg-slate-100 text-slate-600'}`}
+          >
+            {log.action}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm text-slate-700">{log.detail || '—'}</p>
+            <p className="text-xs text-slate-400">{formatDatetime(log.created_at)}</p>
+          </div>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export default function Dashboard() {
   const { role } = useAuth()
   const [stats, setStats] = useState(null)
   const [leaves, setLeaves] = useState([])
   const [reports, setReports] = useState(null)
+  const [recentLogs, setRecentLogs] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -80,12 +124,14 @@ export default function Dashboard() {
         let data
         let leaveData = []
         let reportData = null
+        let logData = []
 
         if (role === 'admin') {
-          ;[data, leaveData, reportData] = await Promise.all([
+          ;[data, leaveData, reportData, logData] = await Promise.all([
             getAdminDashboard(),
             getLeaves(),
             getReports(month, year),
+            getAuditLogs({ page: 1, page_size: 5 }).catch(() => []),
           ])
         } else if (role === 'hr') {
           ;[data, leaveData, reportData] = await Promise.all([
@@ -103,6 +149,8 @@ export default function Dashboard() {
         setStats(data)
         setLeaves(leaveData)
         setReports(reportData)
+        const items = Array.isArray(logData) ? logData : (logData.items ?? [])
+        setRecentLogs(items)
       } catch (err) {
         setError(err.response?.data?.detail || 'Failed to load dashboard')
       } finally {
@@ -127,11 +175,58 @@ export default function Dashboard() {
       {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
       {!loading && !error && ['admin', 'hr'].includes(role) && stats && (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Total Employees" value={stats.total_employees} />
-          <StatCard label="Today's Attendance" value={attendanceToday} />
-          <StatCard label="Pending Leaves" value={pendingLeaves} />
-          <StatCard label="Payroll This Month" value={payrollGenerated} />
+        <div className="space-y-6">
+          {/* Summary cards */}
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard label="Total Employees" value={stats.total_employees} />
+            <StatCard label="Today's Attendance" value={attendanceToday} />
+            <StatCard
+              label="Pending Leaves"
+              value={pendingLeaves}
+              hint={pendingLeaves > 0 ? 'Action required' : 'All clear'}
+            />
+            <StatCard
+              label="Payroll This Month"
+              value={payrollGenerated}
+              hint="Generated payrolls"
+            />
+          </div>
+
+          {/* Leave + attendance overview */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            <SummaryPanel title="Leave Requests">
+              <div className="grid grid-cols-3 gap-3">
+                <MiniMetric label="Pending" value={countByStatus(leaves, 'PENDING')} />
+                <MiniMetric label="Approved" value={countByStatus(leaves, 'APPROVED')} />
+                <MiniMetric label="Rejected" value={countByStatus(leaves, 'REJECTED')} />
+              </div>
+              {pendingLeaves > 0 && (
+                <p className="mt-3 rounded-lg bg-yellow-50 px-3 py-2 text-xs font-medium text-yellow-800">
+                  {pendingLeaves} pending leave request(s) require approval.
+                </p>
+              )}
+            </SummaryPanel>
+
+            <SummaryPanel title="Attendance Overview">
+              <div className="grid grid-cols-2 gap-3">
+                <MiniMetric
+                  label="Present Today"
+                  value={stats.attendance_present_today ?? stats.attendance_today ?? '—'}
+                />
+                <MiniMetric
+                  label="Absent Today"
+                  value={stats.attendance_absent_today ?? '—'}
+                />
+              </div>
+            </SummaryPanel>
+          </div>
+
+          {/* Recent activity — admin only */}
+          {role === 'admin' && (
+            <SummaryPanel title="Recent Activity">
+              <RecentActivity logs={recentLogs} />
+            </SummaryPanel>
+          )}
         </div>
       )}
 

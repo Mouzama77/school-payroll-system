@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.api.attendance import router as attendance_router
+from app.api.audit_logs import router as audit_logs_router
 from app.api.auth import router as auth_router
 from app.api.dashboard import router as dashboard_router
 from app.api.departments import router as departments_router
@@ -31,6 +32,7 @@ app.include_router(attendance_router, prefix="/attendance", tags=["Attendance"])
 app.include_router(payroll_router, prefix="/payroll", tags=["Payroll"])
 app.include_router(dashboard_router)
 app.include_router(leave_router)
+app.include_router(audit_logs_router)
 
 @app.get("/")
 def root():

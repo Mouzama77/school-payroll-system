@@ -165,3 +165,58 @@ class PayrollService:
                 detail="Payroll not found for this employee and month",
             )
         return PayrollService._to_response(payroll)
+
+    @staticmethod
+    def recalculate_payroll(
+        db: Session,
+        employee_id: UUID,
+        month: int,
+        year: int,
+    ) -> PayrollResponse:
+        """Recalculate an existing payroll snapshot using current attendance data.
+
+        This is the correct path after an attendance override: the override
+        changes the attendance record in place, then this method re-reads the
+        attendance summary and updates the stored payroll snapshot to match.
+
+        Raises 404 if no payroll record exists for the given employee/month.
+        Use generate_payroll to create the initial record.
+        """
+        employee = AttendanceService.validate_employee_exists(db, employee_id)
+
+        payroll = PayrollService._get_existing_payroll(db, employee_id, month, year)
+        if not payroll:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Payroll not found for this employee and month. Use generate_payroll first.",
+            )
+
+        # Re-read attendance — this reflects any overrides applied since generation.
+        attendance = AttendanceService.get_monthly_attendance(
+            db=db,
+            employee_id=employee_id,
+            month=month,
+            year=year,
+        )
+        amounts = PayrollService._calculate_amounts(
+            base_salary=employee.salary,
+            total_present=attendance.summary.total_present,
+            total_absent=attendance.summary.total_absent,
+            total_half_days=attendance.summary.total_half_days,
+        )
+
+        # Update the stored snapshot fields in place.
+        payroll.days_present = amounts["total_present"]
+        payroll.total_absent = amounts["total_absent"]
+        payroll.total_half_days = amounts["total_half_days"]
+        payroll.leave_deductions = amounts["total_deductions"]
+        payroll.net_salary = amounts["net_salary"]
+        payroll.status = "recalculated"
+
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        db.refresh(payroll)
+        return PayrollService._to_response(payroll)

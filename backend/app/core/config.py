@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     DEBUG: bool = False
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/school_payroll_db"
-    SECRET_KEY: str = "replace-with-a-secure-secret-key"
+    SECRET_KEY: str  # No default — startup fails loudly if unset in .env
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"

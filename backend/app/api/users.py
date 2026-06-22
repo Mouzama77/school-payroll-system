@@ -40,7 +40,7 @@ def list_users(
 def create_user(
     payload: UserCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(ADMIN, HR)),
+    current_user: User = Depends(require_roles(ADMIN)),
 ):
     return AuthService.create_user(
         db=db,

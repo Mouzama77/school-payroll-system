@@ -13,6 +13,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.schemas.attendance import (
     AttendanceCreate,
+    AttendanceOverrideRequest,
     AttendanceResponse,
     MonthlyAttendanceResponse,
 )
@@ -32,6 +33,33 @@ def mark_attendance(
     current_user: User = Depends(require_roles(*MANAGEMENT_ROLES)),
 ):
     return AttendanceService.mark_attendance(db, payload)
+
+
+@router.put(
+    "/{attendance_id}/override",
+    response_model=AttendanceResponse,
+    summary="Override an attendance record (HR/Admin only)",
+)
+def override_attendance(
+    attendance_id: UUID,
+    payload: AttendanceOverrideRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(*MANAGEMENT_ROLES)),
+):
+    """Override the status of an existing attendance record.
+
+    - Only HR and Admin may call this endpoint.
+    - A mandatory reason must be provided.
+    - The new status cannot be ON_LEAVE (that is set automatically on leave approval).
+    - Full audit data (who, when, why) is stored on the record.
+    """
+    return AttendanceService.override_attendance(
+        db=db,
+        attendance_id=attendance_id,
+        new_status=payload.status,
+        reason=payload.reason,
+        overriding_user_id=current_user.id,
+    )
 
 
 @router.get("/{employee_id}", response_model=MonthlyAttendanceResponse)

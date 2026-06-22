@@ -5,6 +5,7 @@ import RoleRoute from './components/RoleRoute'
 import { ROLE_HOME } from './config/navigation'
 import { ROUTE_PERMISSIONS } from './config/permissions'
 import { useAuth } from './context/AuthContext'
+import AuditLog from './pages/AuditLog'
 import Attendance from './pages/Attendance'
 import ChangePassword from './pages/ChangePassword'
 import Dashboard from './pages/Dashboard'
@@ -155,6 +156,16 @@ export default function App() {
         }
       />
 
+      <Route
+        path="/audit-logs"
+        element={
+          <RoleRoute allowedRoles={ROUTE_PERMISSIONS.auditLog}>
+            <MustChangePasswordGuard>
+              <AuditLog />
+            </MustChangePasswordGuard>
+          </RoleRoute>
+        }
+      />
       <Route
         path="/my-attendance"
         element={

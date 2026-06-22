@@ -35,6 +35,32 @@ def generate_payroll(
     )
 
 
+@router.patch(
+    "/{employee_id}/recalculate",
+    response_model=PayrollResponse,
+    summary="Recalculate payroll using current attendance data (HR/Admin only)",
+)
+def recalculate_payroll(
+    employee_id: UUID,
+    month: int = Query(..., ge=1, le=12),
+    year: int = Query(..., ge=2000),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(*MANAGEMENT_ROLES)),
+):
+    """Recalculate an existing payroll snapshot after attendance overrides.
+
+    Re-reads attendance records (which reflect any manual overrides) and
+    updates the stored payroll figures in place. Requires payroll to have
+    been generated first via POST /payroll/generate.
+    """
+    return PayrollService.recalculate_payroll(
+        db=db,
+        employee_id=employee_id,
+        month=month,
+        year=year,
+    )
+
+
 @router.get("/{employee_id}", response_model=PayrollResponse)
 def get_payroll(
     employee_id: UUID,

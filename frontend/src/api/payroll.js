@@ -11,3 +11,10 @@ export async function getPayroll(employeeId, month, year) {
   })
   return data
 }
+
+export async function recalculatePayroll(employeeId, month, year) {
+  const { data } = await api.patch(`/payroll/${employeeId}/recalculate`, null, {
+    params: { month, year },
+  })
+  return data
+}

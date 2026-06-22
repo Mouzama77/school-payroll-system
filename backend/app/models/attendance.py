@@ -2,7 +2,7 @@
 from datetime import date, datetime, timezone
 from enum import Enum
 
-from sqlalchemy import Date, DateTime, Enum as SAEnum, ForeignKey, UniqueConstraint
+from sqlalchemy import Boolean, Date, DateTime, Enum as SAEnum, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -13,6 +13,8 @@ class AttendanceStatus(str, Enum):
     PRESENT = "PRESENT"
     ABSENT = "ABSENT"
     HALF_DAY = "HALF_DAY"
+    ON_LEAVE = "ON_LEAVE"
+    LATE = "LATE"
 
 
 class Attendance(Base):
@@ -54,4 +56,22 @@ class Attendance(Base):
         nullable=False,
     )
 
+    # Override audit fields
+    is_override: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+    override_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    overridden_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id"),
+        nullable=True,
+    )
+    overridden_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     employee = relationship("Employee")
+    overriding_user = relationship("User", foreign_keys=[overridden_by])
