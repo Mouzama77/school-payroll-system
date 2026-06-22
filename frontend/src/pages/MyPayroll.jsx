@@ -17,7 +17,10 @@ export default function MyPayroll() {
   const [notFound, setNotFound] = useState(false)
 
   useEffect(() => {
-    if (!user?.employee_id) return
+    if (!user?.employee_id) {
+      setLoading(false)
+      return
+    }
     getPayroll(user.employee_id, now.getMonth() + 1, now.getFullYear())
       .then(setPayroll)
       .catch((err) => {

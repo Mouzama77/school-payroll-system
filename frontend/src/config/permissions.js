@@ -20,10 +20,10 @@ export const ROUTE_PERMISSIONS = {
   leaves: [ROLES.ADMIN, ROLES.HR],
   reports: [ROLES.ADMIN],
   settings: [ROLES.ADMIN],
-  profile: [ROLES.ADMIN, ROLES.EMPLOYEE],
-  myAttendance: [ROLES.ADMIN, ROLES.EMPLOYEE],
-  myPayroll: [ROLES.ADMIN, ROLES.EMPLOYEE],
-  myLeaves: [ROLES.ADMIN, ROLES.EMPLOYEE],
+  profile: [ROLES.EMPLOYEE],
+  myAttendance: [ROLES.EMPLOYEE],
+  myPayroll: [ROLES.EMPLOYEE],
+  myLeaves: [ROLES.EMPLOYEE],
 }
 
 export const NAV_ITEMS = [

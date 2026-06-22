@@ -4,11 +4,13 @@ import { createLeaveRequest, getMyLeaves } from '../api/leaves'
 import EmptyState from '../components/EmptyState'
 import LoadingSpinner from '../components/LoadingSpinner'
 import SidebarLayout from '../components/SidebarLayout'
+import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 
 const LEAVE_TYPES = ['CASUAL', 'SICK', 'PAID', 'UNPAID']
 
 export default function MyLeaves() {
+  const { user } = useAuth()
   const { showToast } = useToast()
   const [leaves, setLeaves] = useState([])
   const [loading, setLoading] = useState(true)
@@ -22,6 +24,10 @@ export default function MyLeaves() {
 
   const loadLeaves = () => {
     setLoading(true)
+    if (!user?.employee_id) {
+      setLoading(false)
+      return
+    }
     getMyLeaves()
       .then(setLeaves)
       .catch((err) => showToast(err.response?.data?.detail || 'Failed to load leaves', 'error'))

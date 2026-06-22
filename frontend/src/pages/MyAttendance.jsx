@@ -15,7 +15,10 @@ export default function MyAttendance() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!user?.employee_id) return
+    if (!user?.employee_id) {
+      setLoading(false)
+      return
+    }
     getMonthlyAttendance(user.employee_id, now.getMonth() + 1, now.getFullYear())
       .then(setData)
       .catch((err) => showToast(err.response?.data?.detail || 'Failed to load attendance', 'error'))

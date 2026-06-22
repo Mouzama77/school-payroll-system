@@ -45,7 +45,7 @@ export function AuthProvider({ children }) {
       const payload = decodeToken(loginResponse.access_token)
       const profile = {
         email: payload?.email,
-        role: loginResponse.role,
+        role: payload?.role,
         must_change_password: loginResponse.must_change_password,
         employee_id: null,
       }
@@ -78,6 +78,14 @@ export function AuthProvider({ children }) {
     localStorage.setItem(USER_KEY, JSON.stringify(profile))
     setUser(profile)
   }, [token])
+
+  // Let the axios 401 interceptor trigger centralized logout without
+  // importing AuthContext into axios (avoids circular dependency).
+  useEffect(() => {
+    const handler = () => logout()
+    window.addEventListener('auth:logout', handler)
+    return () => window.removeEventListener('auth:logout', handler)
+  }, [logout])
 
   useEffect(() => {
     if (!token) return undefined

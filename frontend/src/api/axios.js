@@ -20,11 +20,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem(TOKEN_KEY)
-      localStorage.removeItem(USER_KEY)
-      if (!window.location.pathname.startsWith('/login')) {
-        window.location.href = '/login'
-      }
+      window.dispatchEvent(new Event('auth:logout'))
     }
     return Promise.reject(error)
   },
