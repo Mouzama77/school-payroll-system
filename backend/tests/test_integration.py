@@ -41,16 +41,16 @@ def _leave(
     end: date,
     status: LeaveStatus = LeaveStatus.PENDING,
 ) -> Leave:
-    leave = Leave.__new__(Leave)
-    leave.id = uuid.uuid4()
-    leave.employee_id = employee_id
-    leave.leave_type = LeaveType.CASUAL
-    leave.start_date = start
-    leave.end_date = end
-    leave.reason = None
-    leave.status = status
-    leave.approved_by = None
-    return leave
+    return Leave(
+        id=uuid.uuid4(),
+        employee_id=employee_id,
+        leave_type=LeaveType.CASUAL,
+        start_date=start,
+        end_date=end,
+        reason=None,
+        status=status,
+        approved_by=None
+    )
 
 
 def _attendance(
@@ -59,34 +59,34 @@ def _attendance(
     status: AttendanceStatus,
     is_override: bool = False,
 ) -> Attendance:
-    record = Attendance.__new__(Attendance)
-    record.id = uuid.uuid4()
-    record.employee_id = employee_id
-    record.date = att_date
-    record.status = status
-    record.is_override = is_override
-    record.override_reason = "prior reason" if is_override else None
-    record.overridden_by = uuid.uuid4() if is_override else None
-    record.overridden_at = datetime.now(timezone.utc) if is_override else None
-    return record
+    return Attendance(
+        id=uuid.uuid4(),
+        employee_id=employee_id,
+        date=att_date,
+        status=status,
+        is_override=is_override,
+        override_reason="prior reason" if is_override else None,
+        overridden_by=uuid.uuid4() if is_override else None,
+        overridden_at=datetime.now(timezone.utc) if is_override else None
+    )
 
 
 def _payroll(employee_id: uuid.UUID, month_key: str) -> Payroll:
-    p = Payroll.__new__(Payroll)
-    p.id = uuid.uuid4()
-    p.employee_id = employee_id
-    p.month = month_key
-    p.base_salary = 30_000.0
-    p.total_working_days = 30
-    p.days_present = 20
-    p.total_absent = 5
-    p.total_half_days = 2
-    p.leave_deductions = 5500.0
-    p.overtime_bonus = 0
-    p.net_salary = 24_500.0
-    p.status = "generated"
-    p.created_at = datetime.now(timezone.utc)
-    return p
+    return Payroll(
+        id=uuid.uuid4(),
+        employee_id=employee_id,
+        month=month_key,
+        base_salary=30_000.0,
+        total_working_days=30,
+        days_present=20,
+        total_absent=5,
+        total_half_days=2,
+        leave_deductions=5500.0,
+        overtime_bonus=0,
+        net_salary=24_500.0,
+        status="generated",
+        created_at=datetime.now(timezone.utc)
+    )
 
 
 def _mock_db_for_leave(leave: Leave, existing_attendance: dict[date, Attendance]):
@@ -357,7 +357,7 @@ class TestPayrollRecalculation:
         db.refresh = MagicMock()
 
         # Payroll query
-        db.query.return_value.filter.return_value.filter.return_value.first.return_value = payroll
+        db.query.return_value.filter.return_value.first.return_value = payroll
 
         return db
 
@@ -373,7 +373,7 @@ class TestPayrollRecalculation:
         db.refresh = MagicMock()
 
         # Payroll lookup
-        db.query.return_value.filter.return_value.filter.return_value.first.return_value = payroll
+        db.query.return_value.filter.return_value.first.return_value = payroll
 
         # Post-override attendance: employee was PRESENT on the overridden day
         mock_summary = MagicMock()
@@ -388,7 +388,7 @@ class TestPayrollRecalculation:
 
         with (
             patch.object(
-                PayrollService.__class__,
+                PayrollService,
                 "validate_employee_exists",
                 return_value=mock_employee,
                 create=True,
@@ -423,7 +423,7 @@ class TestPayrollRecalculation:
         db = MagicMock()
 
         # No payroll found
-        db.query.return_value.filter.return_value.filter.return_value.first.return_value = None
+        db.query.return_value.filter.return_value.first.return_value = None
 
         mock_employee = MagicMock()
         mock_employee.salary = 30_000.0
@@ -451,7 +451,7 @@ class TestPayrollRecalculation:
         payroll = _payroll(employee_id, "2026-07")
 
         db = MagicMock()
-        db.query.return_value.filter.return_value.filter.return_value.first.return_value = payroll
+        db.query.return_value.filter.return_value.first.return_value = payroll
         db.commit.side_effect = Exception("DB failure")
         db.rollback = MagicMock()
 

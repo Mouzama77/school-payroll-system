@@ -224,16 +224,56 @@ class TestPayrollSummaryExcludesOnLeave:
 
         employee_id = uuid.uuid4()
         records = [
-            Attendance(employee_id=employee_id, date=date(2026, 6, 1), status=AttendanceStatus.PRESENT),
-            Attendance(employee_id=employee_id, date=date(2026, 6, 2), status=AttendanceStatus.ON_LEAVE),
-            Attendance(employee_id=employee_id, date=date(2026, 6, 3), status=AttendanceStatus.ABSENT),
-            Attendance(employee_id=employee_id, date=date(2026, 6, 4), status=AttendanceStatus.HALF_DAY),
-            Attendance(employee_id=employee_id, date=date(2026, 6, 5), status=AttendanceStatus.LATE),
+            Attendance(
+                id=uuid.uuid4(),
+                employee_id=employee_id,
+                date=date(2026, 6, 1),
+                status=AttendanceStatus.PRESENT,
+                is_override=False,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            ),
+            Attendance(
+                id=uuid.uuid4(),
+                employee_id=employee_id,
+                date=date(2026, 6, 2),
+                status=AttendanceStatus.ON_LEAVE,
+                is_override=False,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            ),
+            Attendance(
+                id=uuid.uuid4(),
+                employee_id=employee_id,
+                date=date(2026, 6, 3),
+                status=AttendanceStatus.ABSENT,
+                is_override=False,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            ),
+            Attendance(
+                id=uuid.uuid4(),
+                employee_id=employee_id,
+                date=date(2026, 6, 4),
+                status=AttendanceStatus.HALF_DAY,
+                is_override=False,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            ),
+            Attendance(
+                id=uuid.uuid4(),
+                employee_id=employee_id,
+                date=date(2026, 6, 5),
+                status=AttendanceStatus.LATE,
+                is_override=False,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            ),
         ]
 
         # Patch the DB query so we don't need a real DB
         db = MagicMock()
-        db.query.return_value.filter.return_value.filter.return_value.filter.return_value.order_by.return_value.all.return_value = records
+        db.query.return_value.filter.return_value.order_by.return_value.all.return_value = records
 
         with patch.object(AttendanceService, "validate_employee_exists", return_value=MagicMock()):
             response = AttendanceService.get_monthly_attendance(

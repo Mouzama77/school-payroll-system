@@ -19,6 +19,7 @@ export default defineConfig(({ mode }) => {
         '/payroll': { target: apiTarget, changeOrigin: true },
         '/dashboard': { target: apiTarget, changeOrigin: true },
         '/leaves': { target: apiTarget, changeOrigin: true },
+        '/audit-logs': { target: apiTarget, changeOrigin: true },
         '/health': { target: apiTarget, changeOrigin: true },
       },
     },

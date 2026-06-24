@@ -97,8 +97,17 @@ export default function AuditLog() {
         })
 
         // Backend may return array or { items, total } — handle both shapes
-        const items = Array.isArray(result) ? result : (result.items ?? result)
-        setLogs((prev) => (append ? [...prev, ...items] : items))
+        let items = []
+        if (Array.isArray(result)) {
+          items = result
+        } else if (result && Array.isArray(result.items)) {
+          items = result.items
+        }
+
+        setLogs((prev) => {
+          const prevArray = Array.isArray(prev) ? prev : []
+          return append ? [...prevArray, ...items] : items
+        })
         setHasMore(items.length === PAGE_SIZE)
         setPage(pageNum)
       } catch (err) {
@@ -123,7 +132,7 @@ export default function AuditLog() {
   const handleLoadMore = () => load(page + 1, true)
 
   const handleExport = () => {
-    if (logs.length === 0) return
+    if (!Array.isArray(logs) || logs.length === 0) return
     exportToCSV(logs)
   }
 
@@ -198,7 +207,7 @@ export default function AuditLog() {
         </button>
         <button
           type="button"
-          disabled={logs.length === 0}
+          disabled={!Array.isArray(logs) || logs.length === 0}
           onClick={handleExport}
           className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
         >
@@ -211,12 +220,12 @@ export default function AuditLog() {
       {!loading && error && (
         <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
       )}
-      {!loading && !error && logs.length === 0 && (
+      {!loading && !error && (!Array.isArray(logs) || logs.length === 0) && (
         <EmptyState title="No audit logs" description="No events match the current filters." />
       )}
 
       {/* Table */}
-      {logs.length > 0 && (
+      {Array.isArray(logs) && logs.length > 0 && (
         <>
           <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
@@ -231,7 +240,7 @@ export default function AuditLog() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {logs.map((log) => (
+                {Array.isArray(logs) && logs.map((log) => (
                   <tr key={log.id}>
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-500">
                       {formatDatetime(log.created_at)}

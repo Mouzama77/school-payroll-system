@@ -1,6 +1,6 @@
 """Audit log read API — admin only."""
 
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 from uuid import UUID
 
@@ -26,7 +26,7 @@ class AuditLogResponse(BaseModel):
     entity_type: str
     entity_id: UUID
     detail: Optional[str]
-    created_at: date  # serialised as ISO string
+    created_at: datetime  # serialised as ISO string
 
 
 @router.get("/", response_model=list[AuditLogResponse])
