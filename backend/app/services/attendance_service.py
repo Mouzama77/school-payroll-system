@@ -51,15 +51,13 @@ class AttendanceService:
             )
 
     @staticmethod
-    def mark_attendance(db: Session, payload: AttendanceCreate) -> Attendance:
+    def mark_attendance(db: Session, payload: AttendanceCreate, actor_id: UUID) -> Attendance:
+        # Validate
         AttendanceService.validate_employee_exists(db, payload.employee_id)
         AttendanceService.validate_date_not_future(payload.date)
-        AttendanceService.validate_unique_per_day(
-            db,
-            payload.employee_id,
-            payload.date,
-        )
+        AttendanceService.validate_unique_per_day(db, payload.employee_id, payload.date)
 
+        # Create attendance record
         attendance = Attendance(
             employee_id=payload.employee_id,
             date=payload.date,
@@ -67,6 +65,18 @@ class AttendanceService:
         )
         db.add(attendance)
         try:
+            # Insert audit log before committing so both succeed/rollback together
+            from app.models.audit_log import AuditLog
+            db.add(
+                AuditLog(
+                    actor_id=actor_id,
+                    action="ATTENDANCE_CREATED",
+                    entity_type="attendance",
+                    entity_id=attendance.id,  # will be generated after flush
+                    detail=f"Attendance for employee {payload.employee_id} on {payload.date} created",
+                )
+            )
+            db.flush()  # assign IDs before commit
             db.commit()
         except IntegrityError:
             db.rollback()

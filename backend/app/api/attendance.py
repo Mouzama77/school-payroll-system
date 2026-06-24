@@ -32,7 +32,7 @@ def mark_attendance(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(*MANAGEMENT_ROLES)),
 ):
-    return AttendanceService.mark_attendance(db, payload)
+    return AttendanceService.mark_attendance(db, payload, actor_id=current_user.id)
 
 
 @router.put(
