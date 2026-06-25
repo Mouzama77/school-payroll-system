@@ -1,4 +1,4 @@
-﻿from fastapi import FastAPI
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
@@ -54,3 +54,15 @@ def health_check():
         "database": db_status,
         "environment": settings.APP_ENV,
     }
+import logging
+from sqlalchemy import create_engine
+
+logger = logging.getLogger(__name__)
+
+@app.on_event("startup")
+def _log_db_connection():
+    logger.info("DATABASE_URL: %s", settings.DATABASE_URL)
+    engine = create_engine(settings.DATABASE_URL)
+    with engine.connect() as conn:
+        db_name = conn.engine.url.database
+        logger.info("Connected to database: %s", db_name)

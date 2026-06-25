@@ -23,69 +23,104 @@ class AttendanceService:
         return employee
 
     @staticmethod
+    def _to_date(value: date | datetime) -> date:
+        """Normalize a value to a ``date`` instance.
+        Accepts both ``date`` and timezone‑aware ``datetime`` objects.
+        ``datetime`` values are converted using ``date()``.
+        """
+        if isinstance(value, datetime):
+            return value.date()
+        return value
+
+    @staticmethod
     def validate_date_not_future(attendance_date: date) -> None:
+        # ``attendance_date`` may be a ``datetime`` – normalize first.
+        attendance_date = AttendanceService._to_date(attendance_date)
         if attendance_date > date.today():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Attendance date cannot be in the future",
             )
-
+    
     @staticmethod
     def validate_unique_per_day(
         db: Session,
         employee_id: UUID,
-        attendance_date: date,
+        attendance_date: date | datetime,
     ) -> None:
+
+        attendance_date = AttendanceService._to_date(attendance_date)
+
         existing = (
             db.query(Attendance)
             .filter(
                 Attendance.employee_id == employee_id,
                 Attendance.date == attendance_date,
-            )
-            .first()
+            
         )
-        if existing:
+        .first()
+    )
+
+        if existing and existing.status != AttendanceStatus.ON_LEAVE:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Attendance already exists for this employee on this date",
-            )
+    )
+        
+
 
     @staticmethod
     def mark_attendance(db: Session, payload: AttendanceCreate, actor_id: UUID) -> Attendance:
-        # Validate
-        AttendanceService.validate_employee_exists(db, payload.employee_id)
-        AttendanceService.validate_date_not_future(payload.date)
-        AttendanceService.validate_unique_per_day(db, payload.employee_id, payload.date)
+        # Normalise payload date (handle datetime input)
+        normalized_date = AttendanceService._to_date(payload.date)
 
-        # Create attendance record
+        # Validate prerequisites
+        AttendanceService.validate_employee_exists(db, payload.employee_id)
+        AttendanceService.validate_date_not_future(normalized_date)
+        AttendanceService.validate_unique_per_day(db, payload.employee_id, normalized_date)
+
+        existing = (db.query(Attendance).filter(Attendance.employee_id == payload.employee_id, Attendance.date == normalized_date).first())
+        if existing and existing.status == AttendanceStatus.ON_LEAVE:
+            existing.status = payload.status
+            try:
+                db.commit()
+                db.refresh(existing)
+                return existing
+            except Exception:
+                db.rollback()
+                raise
+        # Build the Attendance instance using the normalized date
         attendance = Attendance(
             employee_id=payload.employee_id,
-            date=payload.date,
+            date=normalized_date,
             status=payload.status,
         )
-        db.add(attendance)
+        # Use an explicit transaction block to guarantee atomicity of attendance + audit log.
         try:
-            # Insert audit log before committing so both succeed/rollback together
+            db.add(attendance)
+            
+
+# Generate attendance.id first
+            db.flush()
+
             from app.models.audit_log import AuditLog
+
             db.add(
                 AuditLog(
                     actor_id=actor_id,
                     action="ATTENDANCE_CREATED",
                     entity_type="attendance",
-                    entity_id=attendance.id,  # will be generated after flush
-                    detail=f"Attendance for employee {payload.employee_id} on {payload.date} created",
-                )
+                    entity_id=attendance.id,
+                    detail=f"Attendance for employee {payload.employee_id} on {normalized_date} created"
+                ),
             )
-            db.flush()  # assign IDs before commit
             db.commit()
-        except IntegrityError:
+            db.refresh(attendance)
+            return attendance
+        except IntegrityError as exc:
             db.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Attendance already exists for this employee on this date",
-            )
-        db.refresh(attendance)
-        return attendance
+
+            raise HTTPException( status_code=status.HTTP_409_CONFLICT, detail="Attendance already exists for this employee on this date", ) from exc
 
     @staticmethod
     def override_attendance(

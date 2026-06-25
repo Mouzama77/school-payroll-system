@@ -127,14 +127,14 @@ class PayrollService:
         payroll = Payroll(
             employee_id=employee_id,
             month=month_key,
-            base_salary=employee.salary,
+            base_salary=gross,
             total_working_days=WORKING_DAYS,
-            days_present=amounts["total_present"],
-            total_absent=amounts["total_absent"],
-            total_half_days=amounts["total_half_days"],
-            leave_deductions=amounts["total_deductions"],
-            overtime_bonus=0,
-            net_salary=amounts["net_salary"],
+            days_present=attendance.summary.total_present,
+            total_absent=attendance.summary.total_absent,
+            total_half_days=attendance.summary.total_half_days,
+            leave_deductions=epf,
+            overtime_bonus=tax,
+            net_salary=net_salary,
             status="generated",
         )
         db.add(payroll)
@@ -206,11 +206,12 @@ class PayrollService:
         )
 
         # Update the stored snapshot fields in place.
-        payroll.days_present = amounts["total_present"]
-        payroll.total_absent = amounts["total_absent"]
-        payroll.total_half_days = amounts["total_half_days"]
-        payroll.leave_deductions = amounts["total_deductions"]
-        payroll.net_salary = amounts["net_salary"]
+        payroll.days_present = attendance.summary.total_present
+        payroll.total_absent = attendance.summary.total_absent
+        payroll.total_half_days = attendance.summary.total_half_days
+        payroll.leave_deductions = epf
+        payroll.overtime_bonus = tax
+        payroll.net_salary = net_salary
         payroll.status = "recalculated"
 
         try:
