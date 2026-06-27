@@ -20,6 +20,14 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:5173"
     PASSWORD_RESET_EXPIRE_MINUTES: int = 60
 
+    # Authentication / password policy
+    MIN_PASSWORD_LENGTH: int = 8
+
+    # Forgot password token lifetime must be 10–15 minutes per production requirement
+    PASSWORD_RESET_EXPIRE_MINUTES_MIN: int = 10
+    PASSWORD_RESET_EXPIRE_MINUTES_MAX: int = 15
+
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]

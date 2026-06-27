@@ -1,8 +1,18 @@
 ﻿import uuid
 from datetime import date, datetime, timezone
-from enum import Enum
+from enum import Enum   # ✅ FIX ADDED HERE
 
-from sqlalchemy import Boolean, Date, DateTime, Enum as SAEnum, ForeignKey, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Enum as SAEnum,
+    ForeignKey,
+    Text,
+    UniqueConstraint,
+    Time,
+)
+
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -19,12 +29,9 @@ class AttendanceStatus(str, Enum):
 
 class Attendance(Base):
     __tablename__ = "attendance"
+
     __table_args__ = (
-        UniqueConstraint(
-            "employee_id",
-            "date",
-            name="uq_attendance_employee_date",
-        ),
+        UniqueConstraint("employee_id", "date", name="uq_attendance_employee_date"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -32,23 +39,28 @@ class Attendance(Base):
         primary_key=True,
         default=uuid.uuid4,
     )
+
     employee_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("employees.id"),
         nullable=False,
         index=True,
     )
+
     date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+
     status: Mapped[AttendanceStatus] = mapped_column(
         SAEnum(AttendanceStatus, name="attendance_status"),
         nullable=False,
         default=AttendanceStatus.PRESENT,
     )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -56,18 +68,22 @@ class Attendance(Base):
         nullable=False,
     )
 
-    # Override audit fields
+    check_in_time: Mapped[datetime | None] = mapped_column(Time, nullable=True)
+
     is_override: Mapped[bool] = mapped_column(
         Boolean,
-        nullable=False,
         default=False,
+        nullable=False,
     )
+
     override_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     overridden_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id"),
         nullable=True,
     )
+
     overridden_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,

@@ -6,3 +6,4 @@ from .leave import Leave
 from .payroll import Payroll
 from .user import User
 from .audit_log import AuditLog
+from .late_penalty_rule import LatePenaltyRule

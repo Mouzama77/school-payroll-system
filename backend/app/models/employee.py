@@ -1,7 +1,7 @@
 ﻿import uuid
-from datetime import datetime, date, timezone
+from datetime import datetime, date, timezone, time
 
-from sqlalchemy import String, Date, Float, ForeignKey
+from sqlalchemy import String, Date, Float, ForeignKey, Time
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -36,6 +36,9 @@ class Employee(Base):
     )
 
     salary: Mapped[float] = mapped_column(Float, nullable=False)
+
+    # ✅ FIXED (IMPORTANT FOR PAYROLL LOGIC)
+    reporting_time: Mapped[time] = mapped_column(Time, nullable=False, default=time(9, 30))
 
     join_date: Mapped[date] = mapped_column(default=date.today)
 

@@ -9,9 +9,24 @@ from sqlalchemy.orm import Session
 from app.models.attendance import Attendance, AttendanceStatus
 from app.models.employee import Employee
 from app.schemas.attendance import AttendanceCreate, MonthlyAttendanceResponse
+from app.models.audit_log import AuditLog
 
 
 class AttendanceService:
+    # ----------------------------
+    # Helpers
+    # ----------------------------
+
+    @staticmethod
+    def _to_date(value: date | datetime) -> date:
+        if isinstance(value, datetime):
+            return value.date()
+        return value
+
+    # ----------------------------
+    # Validations (READ ONLY)
+    # ----------------------------
+
     @staticmethod
     def validate_employee_exists(db: Session, employee_id: UUID) -> Employee:
         employee = db.query(Employee).filter(Employee.id == employee_id).first()
@@ -23,87 +38,97 @@ class AttendanceService:
         return employee
 
     @staticmethod
-    def _to_date(value: date | datetime) -> date:
-        """Normalize a value to a ``date`` instance.
-        Accepts both ``date`` and timezone‑aware ``datetime`` objects.
-        ``datetime`` values are converted using ``date()``.
-        """
-        if isinstance(value, datetime):
-            return value.date()
-        return value
-
-    @staticmethod
-    def validate_date_not_future(attendance_date: date) -> None:
-        # ``attendance_date`` may be a ``datetime`` – normalize first.
+    def validate_date_not_future(attendance_date: date | datetime) -> date:
         attendance_date = AttendanceService._to_date(attendance_date)
+
         if attendance_date > date.today():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Attendance date cannot be in the future",
             )
-    
+
+        return attendance_date
+
     @staticmethod
-    def validate_unique_per_day(
+    def get_existing_attendance(
         db: Session,
         employee_id: UUID,
-        attendance_date: date | datetime,
-    ) -> None:
-
-        attendance_date = AttendanceService._to_date(attendance_date)
-
-        existing = (
+        attendance_date: date,
+    ) -> Attendance | None:
+        return (
             db.query(Attendance)
             .filter(
                 Attendance.employee_id == employee_id,
                 Attendance.date == attendance_date,
-            
+            )
+            .first()
         )
-        .first()
-    )
 
-        if existing and existing.status != AttendanceStatus.ON_LEAVE:
+    # ----------------------------
+    # Core Logic
+    # ----------------------------
+
+    @staticmethod
+    def mark_attendance(
+        db: Session,
+        payload: AttendanceCreate,
+        actor_id: UUID,
+    ) -> Attendance:
+
+        normalized_date = AttendanceService.validate_date_not_future(payload.date)
+
+        AttendanceService.validate_employee_exists(db, payload.employee_id)
+
+        existing = AttendanceService.get_existing_attendance(
+            db,
+            payload.employee_id,
+            normalized_date,
+        )
+
+        # ----------------------------
+        # Case 1: existing record
+        # ----------------------------
+        if existing:
+            if existing.status == AttendanceStatus.ON_LEAVE:
+                # Update existing ON_LEAVE attendance
+                try:
+                    existing.status = payload.status
+                    db.add(
+                        AuditLog(
+                            actor_id=actor_id,
+                            action="ATTENDANCE_UPDATED",
+                            entity_type="attendance",
+                            entity_id=existing.id,
+                            detail=f"ON_LEAVE converted to {payload.status.value}",
+                        )
+                    )
+                    db.commit()
+                    db.refresh(existing)
+                    return existing
+                except Exception as exc:
+                    db.rollback()
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Failed to update attendance",
+                    ) from exc
+
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Attendance already exists for this employee on this date",
-    )
-        
+            )
 
-
-    @staticmethod
-    def mark_attendance(db: Session, payload: AttendanceCreate, actor_id: UUID) -> Attendance:
-        # Normalise payload date (handle datetime input)
-        normalized_date = AttendanceService._to_date(payload.date)
-
-        # Validate prerequisites
-        AttendanceService.validate_employee_exists(db, payload.employee_id)
-        AttendanceService.validate_date_not_future(normalized_date)
-        AttendanceService.validate_unique_per_day(db, payload.employee_id, normalized_date)
-
-        existing = (db.query(Attendance).filter(Attendance.employee_id == payload.employee_id, Attendance.date == normalized_date).first())
-        if existing and existing.status == AttendanceStatus.ON_LEAVE:
-            existing.status = payload.status
-            try:
-                db.commit()
-                db.refresh(existing)
-                return existing
-            except Exception:
-                db.rollback()
-                raise
-        # Build the Attendance instance using the normalized date
+        # ----------------------------
+        # Case 2: new record
+        # ----------------------------
         attendance = Attendance(
             employee_id=payload.employee_id,
             date=normalized_date,
             status=payload.status,
         )
-        # Use an explicit transaction block to guarantee atomicity of attendance + audit log.
+
         try:
             db.add(attendance)
-            
-
-# Generate attendance.id first
-            db.flush()
-
-            from app.models.audit_log import AuditLog
+            db.flush()  # ensures attendance.id exists
 
             db.add(
                 AuditLog(
@@ -111,16 +136,24 @@ class AttendanceService:
                     action="ATTENDANCE_CREATED",
                     entity_type="attendance",
                     entity_id=attendance.id,
-                    detail=f"Attendance for employee {payload.employee_id} on {normalized_date} created"
-                ),
+                    detail=f"Attendance created for {payload.employee_id} on {normalized_date}",
+                )
             )
+
             db.commit()
             db.refresh(attendance)
             return attendance
+
         except IntegrityError as exc:
             db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Duplicate attendance detected",
+            ) from exc
 
-            raise HTTPException( status_code=status.HTTP_409_CONFLICT, detail="Attendance already exists for this employee on this date", ) from exc
+    # ----------------------------
+    # Override (UNCHANGED logic, cleaned)
+    # ----------------------------
 
     @staticmethod
     def override_attendance(
@@ -130,17 +163,9 @@ class AttendanceService:
         reason: str,
         overriding_user_id: UUID,
     ) -> Attendance:
-        """Override the status of an existing attendance record.
 
-        Only HR and Admin may call this method (enforced at the API layer via
-        require_roles). The override is recorded with a full audit trail:
-        who changed it, when, and why.
-
-        The previous status does not need to be ON_LEAVE — any status may be
-        overridden — but ON_LEAVE cannot be set as the new status (that is
-        reserved for the automated leave-approval flow).
-        """
         attendance = db.get(Attendance, attendance_id)
+
         if not attendance:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -153,29 +178,23 @@ class AttendanceService:
         attendance.overridden_by = overriding_user_id
         attendance.overridden_at = datetime.now(timezone.utc)
 
-        # Write audit log inside the same transaction.
-        from app.models.audit_log import AuditLog  # local import avoids circular dependency
-
         db.add(
             AuditLog(
                 actor_id=overriding_user_id,
                 action="ATTENDANCE_OVERRIDDEN",
                 entity_type="attendance",
                 entity_id=attendance_id,
-                detail=(
-                    f"Attendance {attendance_id} overridden to {new_status.value}. "
-                    f"Reason: {reason}"
-                ),
+                detail=f"Overridden to {new_status.value}: {reason}",
             )
         )
 
-        try:
-            db.commit()
-        except Exception:
-            db.rollback()
-            raise
+        db.commit()
         db.refresh(attendance)
         return attendance
+
+    # ----------------------------
+    # Monthly report
+    # ----------------------------
 
     @staticmethod
     def get_monthly_attendance(
@@ -184,6 +203,7 @@ class AttendanceService:
         month: int,
         year: int,
     ) -> MonthlyAttendanceResponse:
+
         AttendanceService.validate_employee_exists(db, employee_id)
 
         records = (
@@ -197,18 +217,10 @@ class AttendanceService:
             .all()
         )
 
-        # ON_LEAVE counts as neither present, absent, nor half-day for payroll purposes.
-        # Payroll deductions are only applied for ABSENT and HALF_DAY.
         summary = {
-            "total_present": sum(
-                1 for r in records if r.status == AttendanceStatus.PRESENT
-            ),
-            "total_absent": sum(
-                1 for r in records if r.status == AttendanceStatus.ABSENT
-            ),
-            "total_half_days": sum(
-                1 for r in records if r.status == AttendanceStatus.HALF_DAY
-            ),
+            "total_present": sum(r.status == AttendanceStatus.PRESENT for r in records),
+            "total_absent": sum(r.status == AttendanceStatus.ABSENT for r in records),
+            "total_half_days": sum(r.status == AttendanceStatus.HALF_DAY for r in records),
         }
 
         return MonthlyAttendanceResponse(
