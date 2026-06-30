@@ -49,15 +49,19 @@ class User(Base):
         DateTime(timezone=True),
         nullable=True,
     )
-    # Match DB: TIMESTAMP(timezone=True) — DB has no server default on this column
+    # Match DB: TIMESTAMP(timezone=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=sa_text("now()"),
         nullable=False,
     )
 
     # Extra columns present in DB — mirrored here to match DB reality
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=sa_text("now()"),
         nullable=False,
     )
     # DB has this as a registration_status ENUM; declare as String to avoid
