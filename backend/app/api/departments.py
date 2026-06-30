@@ -153,5 +153,14 @@ def delete_department_endpoint(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Department not found",
         )
+
+    from app.models.employee import Employee
+    assigned = db.query(Employee).filter(Employee.department_id == department_id).first()
+    if assigned:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Department is in use and cannot be deleted",
+        )
+
     delete_department(db=db, department=department)
     return None

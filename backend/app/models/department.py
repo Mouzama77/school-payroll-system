@@ -35,7 +35,7 @@ class Department(Base):
     )
 
     # Extra columns present in DB — mirrored here to prevent autogenerate DROP
-    code: Mapped[str | None] = mapped_column(String(20), nullable=False)
+    code: Mapped[str] = mapped_column(String(20), nullable=False, default="")
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import (
@@ -29,10 +29,14 @@ router = APIRouter()
 )
 def mark_attendance(
     payload: AttendanceCreate,
+    response: Response,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(*MANAGEMENT_ROLES)),
 ):
-    return AttendanceService.mark_attendance(db, payload, actor_id=current_user.id)
+    result, was_update = AttendanceService.mark_attendance(db, payload, actor_id=current_user.id)
+    if was_update:
+        response.status_code = status.HTTP_200_OK
+    return result
 
 
 @router.put(

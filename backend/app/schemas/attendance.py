@@ -13,6 +13,14 @@ class AttendanceStatus(str, Enum):
     LATE = "LATE"
 
 
+# Statuses accepted via POST /attendance — ON_LEAVE is set automatically by leave approval
+class AttendanceCreateStatus(str, Enum):
+    PRESENT = "PRESENT"
+    ABSENT = "ABSENT"
+    HALF_DAY = "HALF_DAY"
+    LATE = "LATE"
+
+
 # Statuses that HR/Admin may override TO (ON_LEAVE is set automatically, never manually)
 OVERRIDABLE_STATUSES = {
     AttendanceStatus.PRESENT,
@@ -25,7 +33,7 @@ OVERRIDABLE_STATUSES = {
 class AttendanceCreate(BaseModel):
     employee_id: UUID
     date: date
-    status: AttendanceStatus = AttendanceStatus.PRESENT
+    status: AttendanceCreateStatus = AttendanceCreateStatus.PRESENT
 
 
 class AttendanceResponse(BaseModel):

@@ -73,7 +73,10 @@ class AttendanceService:
         db: Session,
         payload: AttendanceCreate,
         actor_id: UUID,
-    ) -> Attendance:
+    ) -> tuple[Attendance, bool]:
+        """Returns (attendance, was_update).
+        was_update=True when an existing ON_LEAVE record was converted (HTTP 200).
+        was_update=False for new records (HTTP 201)."""
 
         normalized_date = AttendanceService.validate_date_not_future(payload.date)
 
@@ -92,7 +95,7 @@ class AttendanceService:
             if existing.status == AttendanceStatus.ON_LEAVE:
                 # Update existing ON_LEAVE attendance
                 try:
-                    existing.status = payload.status
+                    existing.status = AttendanceStatus(payload.status.value)
                     db.add(
                         AuditLog(
                             actor_id=actor_id,
@@ -104,7 +107,7 @@ class AttendanceService:
                     )
                     db.commit()
                     db.refresh(existing)
-                    return existing
+                    return existing, True  # was_update → caller returns HTTP 200
                 except Exception as exc:
                     db.rollback()
                     raise HTTPException(
@@ -123,7 +126,7 @@ class AttendanceService:
         attendance = Attendance(
             employee_id=payload.employee_id,
             date=normalized_date,
-            status=payload.status,
+            status=AttendanceStatus(payload.status.value),
         )
 
         try:
@@ -142,7 +145,7 @@ class AttendanceService:
 
             db.commit()
             db.refresh(attendance)
-            return attendance
+            return attendance, False  # was_update=False → caller returns HTTP 201
 
         except IntegrityError as exc:
             db.rollback()
