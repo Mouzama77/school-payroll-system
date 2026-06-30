@@ -473,7 +473,7 @@ class TestPayrollRecalculation:
                 "app.services.payroll_service.AttendanceService.get_monthly_attendance",
                 return_value=mock_resp,
             ),
-            pytest.raises(Exception, match="DB failure"),
+            pytest.raises(Exception, match="Failed to recalculate payroll"),
         ):
             PayrollService.recalculate_payroll(
                 db=db,

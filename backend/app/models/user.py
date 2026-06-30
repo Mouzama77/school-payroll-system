@@ -22,7 +22,8 @@ class User(Base):
         unique=True,
         nullable=False,
     )
-    hashed_password: Mapped[str] = mapped_column(String, nullable=False)
+    # Maps to the actual DB column name
+    password_hash: Mapped[str] = mapped_column(String, nullable=False)
     role: Mapped[str] = mapped_column(
         String(20),
         default="employee",
@@ -45,4 +46,23 @@ class User(Base):
     )
     created_at: Mapped[datetime] = mapped_column(
         default=lambda: datetime.now(timezone.utc),
+    )
+
+    # Extra columns present in DB — declared here so SQLAlchemy doesn't error
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    registration_status: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+    invitation_token: Mapped[str | None] = mapped_column(String, nullable=True)
+    invitation_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    email_verified: Mapped[bool | None] = mapped_column(
+        Boolean,
+        nullable=True,
     )

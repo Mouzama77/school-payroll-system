@@ -188,7 +188,11 @@ class AttendanceService:
             )
         )
 
-        db.commit()
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
         db.refresh(attendance)
         return attendance
 
