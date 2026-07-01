@@ -26,6 +26,7 @@ class PayrollResponse(BaseModel):
     absent_deductions: float
     half_day_deductions: float
     leave_deductions: float
+    late_deductions: float
     total_deductions: float
     net_salary: float
     status: str

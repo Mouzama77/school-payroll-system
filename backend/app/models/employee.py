@@ -35,6 +35,13 @@ class Employee(Base):
         nullable=False
     )
 
+    # Req 13.4 — nullable FK to designations
+    designation_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("designations.id"),
+        nullable=True,
+    )
+
     salary: Mapped[float] = mapped_column(Float, nullable=False)
 
     # ✅ FIXED (IMPORTANT FOR PAYROLL LOGIC)

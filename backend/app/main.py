@@ -11,6 +11,7 @@ from app.api.audit_logs import router as audit_logs_router
 from app.api.auth import router as auth_router
 from app.api.dashboard import router as dashboard_router
 from app.api.departments import router as departments_router
+from app.api.designations import router as designations_router
 from app.api.employees import router as employee_router
 from app.api.leave import router as leave_router
 from app.api.payroll import router as payroll_router
@@ -106,6 +107,7 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(users_router)
 app.include_router(departments_router)
+app.include_router(designations_router)
 app.include_router(employee_router, prefix="/employees", tags=["Employees"])
 app.include_router(attendance_router, prefix="/attendance", tags=["Attendance"])
 app.include_router(payroll_router, prefix="/payroll", tags=["Payroll"])

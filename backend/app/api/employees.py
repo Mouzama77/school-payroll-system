@@ -135,6 +135,17 @@ def update_employee(
     if employee_data.joining_date is not None:
         employee.join_date = employee_data.joining_date
 
+    # Req 13.5, 13.6 — validate designation_id exists if provided
+    if employee_data.designation_id is not None:
+        from app.models.designation import Designation
+        desig = db.query(Designation).filter(Designation.id == employee_data.designation_id).first()
+        if not desig:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="designation_id does not exist",
+            )
+        employee.designation_id = employee_data.designation_id
+
     db.commit()
     db.refresh(employee)
     return employee

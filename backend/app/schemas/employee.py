@@ -24,6 +24,7 @@ class EmployeeUpdate(BaseModel):
     joining_date: date | None = None
     department_id: UUID | None = None
     role_id: UUID | None = None
+    designation_id: UUID | None = None  # Req 13.5 — nullable, validated against designations
 
 
 class EmployeeResponse(BaseModel):
@@ -38,5 +39,6 @@ class EmployeeResponse(BaseModel):
     joining_date: date = Field(validation_alias="join_date")
     department_id: UUID
     role_id: UUID
+    designation_id: UUID | None = None
     status: str = "active"
     created_at: datetime

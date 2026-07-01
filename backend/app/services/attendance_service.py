@@ -1,4 +1,5 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timezone
+from math import floor
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -22,6 +23,16 @@ class AttendanceService:
         if isinstance(value, datetime):
             return value.date()
         return value
+
+    @staticmethod
+    def compute_late_minutes(check_in: time, reporting_time: time) -> int:
+        """Req 12.2: late_minutes = max(0, floor((check_in - reporting_time) in minutes)).
+        Returns 0 if check_in <= reporting_time."""
+        # Convert both times to total seconds from midnight for arithmetic
+        check_in_secs = check_in.hour * 3600 + check_in.minute * 60 + check_in.second
+        report_secs = reporting_time.hour * 3600 + reporting_time.minute * 60 + reporting_time.second
+        diff_secs = check_in_secs - report_secs
+        return max(0, floor(diff_secs / 60))
 
     # ----------------------------
     # Validations (READ ONLY)
@@ -80,7 +91,7 @@ class AttendanceService:
 
         normalized_date = AttendanceService.validate_date_not_future(payload.date)
 
-        AttendanceService.validate_employee_exists(db, payload.employee_id)
+        employee = AttendanceService.validate_employee_exists(db, payload.employee_id)
 
         existing = AttendanceService.get_existing_attendance(
             db,
@@ -123,10 +134,14 @@ class AttendanceService:
         # ----------------------------
         # Case 2: new record
         # ----------------------------
+        # Req 16.2: persist check_in_time when provided
+        check_in_time = getattr(payload, "check_in_time", None)
+
         attendance = Attendance(
             employee_id=payload.employee_id,
             date=normalized_date,
             status=AttendanceStatus(payload.status.value),
+            check_in_time=check_in_time,
         )
 
         try:

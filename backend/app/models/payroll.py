@@ -41,6 +41,11 @@ class Payroll(Base):
         default=0,
         nullable=False
     )
+    late_deductions: Mapped[float] = mapped_column(
+        Float,
+        default=0,
+        nullable=False
+    )
     overtime_bonus: Mapped[float] = mapped_column(
         Float,
         default=0,

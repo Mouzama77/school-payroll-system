@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, time
 from enum import Enum
 from uuid import UUID
 
@@ -34,6 +34,8 @@ class AttendanceCreate(BaseModel):
     employee_id: UUID
     date: date
     status: AttendanceCreateStatus = AttendanceCreateStatus.PRESENT
+    # Optional check-in time; required for late-minutes computation when status=LATE
+    check_in_time: time | None = None
 
 
 class AttendanceResponse(BaseModel):
@@ -45,6 +47,7 @@ class AttendanceResponse(BaseModel):
     status: AttendanceStatus
     created_at: datetime
     updated_at: datetime
+    check_in_time: time | None = None
 
     # Override audit fields
     is_override: bool
