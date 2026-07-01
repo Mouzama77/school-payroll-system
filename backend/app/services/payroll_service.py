@@ -142,6 +142,38 @@ class PayrollService:
         return PayrollService._round_money(total_late_ded)
 
     @staticmethod
+    def _compute_overtime_pay(
+        db: Session,
+        employee_id: UUID,
+        month: int,
+        year: int,
+        daily_salary: float,
+    ) -> float:
+        """Req 20.1–20.2: Sum overtime_pay for all overtime_records in the month.
+        overtime_pay per record = round(hours * daily_salary * rate_multiplier, 2).
+        Returns total rounded to 2dp."""
+        from app.models.overtime_record import OvertimeRecord
+
+        records = (
+            db.query(OvertimeRecord)
+            .filter(
+                OvertimeRecord.employee_id == employee_id,
+                extract("month", OvertimeRecord.date) == month,
+                extract("year", OvertimeRecord.date) == year,
+            )
+            .all()
+        )
+
+        if not records:
+            return 0.0
+
+        total = sum(
+            PayrollService._round_money(r.hours * daily_salary * r.rate_multiplier)
+            for r in records
+        )
+        return PayrollService._round_money(total)
+
+    @staticmethod
     def _to_response(payroll: Payroll) -> PayrollResponse:
         month, year = PayrollService._parse_month_key(payroll.month)
         amounts = PayrollService._calculate_amounts(
@@ -165,6 +197,7 @@ class PayrollService:
             half_day_deductions=amounts["half_day_deductions"],
             leave_deductions=PayrollService._round_money(payroll.leave_deductions or 0),
             late_deductions=PayrollService._round_money(payroll.late_deductions or 0),
+            overtime_pay=PayrollService._round_money(payroll.overtime_bonus or 0),
             total_deductions=amounts["total_deductions"],
             net_salary=payroll.net_salary or amounts["net_salary"],
             status=payroll.status,
@@ -246,8 +279,13 @@ class PayrollService:
                 reporting_time=reporting_time,
             )
 
-        # net_salary = base - absent_ded - half_day_ded - late_ded
-        net_salary = PayrollService._round_money(amounts["net_salary"] - late_deductions)
+        # Req 20.1–20.3: compute overtime pay and add to net_salary
+        overtime_pay = PayrollService._compute_overtime_pay(
+            db=db, employee_id=employee_id, month=month, year=year, daily_salary=daily_salary
+        )
+
+        # net_salary = base - deductions + overtime_pay
+        net_salary = PayrollService._round_money(amounts["net_salary"] - late_deductions + overtime_pay)
 
         payroll = Payroll(
             employee_id=employee_id,
@@ -259,11 +297,10 @@ class PayrollService:
             total_half_days=summary["total_half_days"],
             leave_deductions=amounts["total_deductions"],
             late_deductions=late_deductions,
-            overtime_bonus=0,
+            overtime_bonus=overtime_pay,
             net_salary=net_salary,
             status="generated",
         )
-
         db.add(payroll)
         try:
             db.commit()
@@ -341,14 +378,19 @@ class PayrollService:
                 reporting_time=reporting_time,
             )
 
-        net_salary = PayrollService._round_money(amounts["net_salary"] - late_deductions)
+        # Req 20.1–20.3: recompute overtime pay
+        overtime_pay = PayrollService._compute_overtime_pay(
+            db=db, employee_id=employee_id, month=month, year=year, daily_salary=daily_salary
+        )
+
+        net_salary = PayrollService._round_money(amounts["net_salary"] - late_deductions + overtime_pay)
 
         payroll.days_present = summary["total_present"]
         payroll.total_absent = summary["total_absent"]
         payroll.total_half_days = summary["total_half_days"]
         payroll.leave_deductions = amounts["total_deductions"]
         payroll.late_deductions = late_deductions
-        payroll.overtime_bonus = 0
+        payroll.overtime_bonus = overtime_pay
         payroll.net_salary = net_salary
         payroll.status = "recalculated"
 
