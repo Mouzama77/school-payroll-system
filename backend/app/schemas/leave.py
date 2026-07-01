@@ -2,7 +2,7 @@ from datetime import date
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from app.models.leave import LeaveStatus, LeaveType
 
@@ -12,6 +12,12 @@ class LeaveCreate(BaseModel):
     start_date: date
     end_date: date
     reason: Optional[str] = None
+
+    @model_validator(mode="after")
+    def end_date_not_before_start(self) -> "LeaveCreate":
+        if self.end_date < self.start_date:
+            raise ValueError("end_date must be on or after start_date")
+        return self
 
 
 class LeaveUpdate(BaseModel):

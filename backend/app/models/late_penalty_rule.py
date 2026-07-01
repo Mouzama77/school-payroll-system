@@ -8,7 +8,12 @@ from app.db.session import Base
 
 
 class LatePenaltyRule(Base):
-    """Late penalty rules (DB-driven payroll configuration)."""
+    """Late penalty rules — Phase 2 DB-driven payroll configuration.
+
+    Each row defines a lateness tier: when an employee's late_minutes falls
+    in [min_late_minutes, max_late_minutes] the corresponding deduction_type
+    is applied during payroll generation.
+    """
 
     __tablename__ = "late_penalty_rules"
 
@@ -18,15 +23,17 @@ class LatePenaltyRule(Base):
         default=uuid.uuid4,
     )
 
-    # Minimum late days threshold
-    late_days_min: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Lower bound of late minutes for this tier (inclusive)
+    min_late_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    # Deduction applied when rule matches
-    deduction_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    # Upper bound of late minutes for this tier (NULL = no upper bound)
+    max_late_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    # Optional admin label
+    # Deduction type: "none" | "warning" | "half_day" | "full_day"
+    deduction_type: Mapped[str] = mapped_column(String(20), nullable=False)
+
+    # Human-readable label for the admin UI
     label: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
 
-# ✅ IMPORTANT: enforce fast lookup for payroll engine
-Index("ix_late_penalty_rules_late_days_min", LatePenaltyRule.late_days_min)
+Index("ix_late_penalty_rules_min_late_minutes", LatePenaltyRule.min_late_minutes)

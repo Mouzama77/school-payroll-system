@@ -117,6 +117,7 @@ class PayrollService:
             daily_salary=amounts["daily_salary"],
             absent_deductions=amounts["absent_deductions"],
             half_day_deductions=amounts["half_day_deductions"],
+            leave_deductions=PayrollService._round_money(payroll.leave_deductions or 0),
             total_deductions=amounts["total_deductions"],
             net_salary=payroll.net_salary or amounts["net_salary"],
             status=payroll.status,
@@ -172,7 +173,10 @@ class PayrollService:
 
         base_salary = getattr(employee, "salary", None)
         if base_salary is None or base_salary <= 0:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid employee salary")
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Base salary must be a positive value",
+            )
 
         month_key = PayrollService._month_key(month, year)
 
@@ -251,8 +255,10 @@ class PayrollService:
         payroll = PayrollService._get_existing_payroll(db, employee_id, month, year)
 
         if not payroll:
-            # Keep existing external message semantics, but avoid silent crashes.
-            raise HTTPException(404, "Employee not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Payroll not found for this employee and month",
+            )
 
         # Ensure base salary is usable for response calculations.
         if getattr(payroll, "base_salary", None) is None or payroll.base_salary <= 0:
@@ -273,7 +279,10 @@ class PayrollService:
         employee = AttendanceService.validate_employee_exists(db, employee_id)
         base_salary = getattr(employee, "salary", None)
         if base_salary is None or base_salary <= 0:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid employee salary")
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Base salary must be a positive value",
+            )
 
         payroll = PayrollService._get_existing_payroll(db, employee_id, month, year)
 

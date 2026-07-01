@@ -39,6 +39,13 @@ def update_leave_status(db: Session, leave_id: UUID, new_status, approved_by: UU
             detail="Leave request not found",
         )
 
+    # Only PENDING leaves can be approved or rejected (Req 9.3, 9.4, 9.5, 9.6)
+    if leave.status != LeaveStatus.PENDING:
+        raise HTTPException(
+            status_code=http_status.HTTP_409_CONFLICT,
+            detail=f"Leave is already {leave.status.value} and cannot be updated",
+        )
+
     leave.status = new_status
     leave.approved_by = approved_by
 

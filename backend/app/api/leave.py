@@ -19,7 +19,7 @@ router = APIRouter(prefix="/leaves", tags=["Leaves"])
 
 
 # Employee: create leave request
-@router.post("/", response_model=LeaveOut)
+@router.post("/", response_model=LeaveOut, status_code=201)
 def request_leave(
     data: LeaveCreate,
     db: Session = Depends(get_db),

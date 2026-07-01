@@ -26,38 +26,43 @@ class AuditLogResponse(BaseModel):
     entity_type: str
     entity_id: UUID
     detail: Optional[str]
-    created_at: datetime  # serialised as ISO string
+    created_at: datetime
 
 
-@router.get("/", response_model=list[AuditLogResponse])
+class PaginatedAuditLogResponse(BaseModel):
+    items: list[AuditLogResponse]
+    total: int
+    skip: int
+    limit: int
+
+
+@router.get("/", response_model=PaginatedAuditLogResponse)
 def list_audit_logs(
-    search: Optional[str] = Query(None, description="Free-text search in detail field"),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(20, ge=1, le=100, description="Page size (max 100)"),
     action: Optional[str] = Query(None, description="Filter by action label"),
     entity_type: Optional[str] = Query(None, description="Filter by entity type"),
-    date_from: Optional[date] = Query(None, description="Inclusive start date"),
-    date_to: Optional[date] = Query(None, description="Inclusive end date"),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(ADMIN)),
 ):
-    """Return paginated audit log entries. Admin only."""
+    """Return paginated audit log entries ordered by created_at DESC. Admin only."""
     q = db.query(AuditLog)
-    if search:
-        q = q.filter(AuditLog.detail.ilike(f"%{search}%"))
     if action:
         q = q.filter(AuditLog.action == action)
     if entity_type:
         q = q.filter(AuditLog.entity_type == entity_type)
-    if date_from:
-        q = q.filter(AuditLog.created_at >= date_from)
-    if date_to:
-        q = q.filter(AuditLog.created_at <= date_to)
 
-    offset = (page - 1) * page_size
-    return (
+    total = q.count()
+    items = (
         q.order_by(AuditLog.created_at.desc())
-        .offset(offset)
-        .limit(page_size)
+        .offset(skip)
+        .limit(limit)
         .all()
+    )
+
+    return PaginatedAuditLogResponse(
+        items=items,
+        total=total,
+        skip=skip,
+        limit=limit,
     )
