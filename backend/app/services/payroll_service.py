@@ -61,8 +61,9 @@ class PayrollService:
         total_present: int,
         total_absent: int,
         total_half_days: int,
+        working_days: int = WORKING_DAYS,
     ) -> dict[str, float | int]:
-        daily_salary = base_salary / WORKING_DAYS
+        daily_salary = base_salary / working_days
         absent_deductions = total_absent * daily_salary
         half_day_deductions = total_half_days * daily_salary * 0.5
         total_deductions = absent_deductions + half_day_deductions
@@ -174,13 +175,31 @@ class PayrollService:
         return PayrollService._round_money(total)
 
     @staticmethod
+    def _get_working_days(db: Session, month: int, year: int) -> int:
+        """Req 15.4, 15.5: Count WORKING_DAY entries for the month in academic_calendar.
+        Returns the count if > 0, else falls back to WORKING_DAYS (30)."""
+        from app.models.academic_calendar import AcademicCalendar
+        count = (
+            db.query(AcademicCalendar)
+            .filter(
+                AcademicCalendar.day_type == "WORKING_DAY",
+                extract("month", AcademicCalendar.date) == month,
+                extract("year", AcademicCalendar.date) == year,
+            )
+            .count()
+        )
+        return count if count > 0 else WORKING_DAYS
+
+    @staticmethod
     def _to_response(payroll: Payroll) -> PayrollResponse:
         month, year = PayrollService._parse_month_key(payroll.month)
+        stored_working_days = payroll.total_working_days or WORKING_DAYS
         amounts = PayrollService._calculate_amounts(
             base_salary=payroll.base_salary,
             total_present=payroll.days_present or 0,
             total_absent=payroll.total_absent,
             total_half_days=payroll.total_half_days,
+            working_days=stored_working_days,
         )
         return PayrollResponse(
             id=payroll.id,
@@ -258,11 +277,16 @@ class PayrollService:
             db=db, employee_id=employee_id, month=month, year=year
         )
         summary = PayrollService._normalize_attendance_summary(getattr(attendance, "summary", None))
+
+        # Req 15.4, 15.5: use academic calendar working days if defined
+        working_days = PayrollService._get_working_days(db, month, year)
+
         amounts = PayrollService._calculate_amounts(
             base_salary=base_salary,
             total_present=summary["total_present"],
             total_absent=summary["total_absent"],
             total_half_days=summary["total_half_days"],
+            working_days=working_days,
         )
 
         # Req 17.1–17.3: compute late deductions from LATE attendance records
@@ -291,7 +315,7 @@ class PayrollService:
             employee_id=employee_id,
             month=month_key,
             base_salary=base_salary,
-            total_working_days=WORKING_DAYS,
+            total_working_days=working_days,
             days_present=summary["total_present"],
             total_absent=summary["total_absent"],
             total_half_days=summary["total_half_days"],
@@ -357,11 +381,16 @@ class PayrollService:
             db=db, employee_id=employee_id, month=month, year=year
         )
         summary = PayrollService._normalize_attendance_summary(getattr(attendance, "summary", None))
+
+        # Req 15.4, 15.5: use academic calendar working days if defined
+        working_days = PayrollService._get_working_days(db, month, year)
+
         amounts = PayrollService._calculate_amounts(
             base_salary=base_salary,
             total_present=summary["total_present"],
             total_absent=summary["total_absent"],
             total_half_days=summary["total_half_days"],
+            working_days=working_days,
         )
 
         # Req 17.1–17.3: recompute late deductions

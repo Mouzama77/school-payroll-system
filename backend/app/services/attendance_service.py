@@ -134,6 +134,17 @@ class AttendanceService:
         # ----------------------------
         # Case 2: new record
         # ----------------------------
+        # Req 15.3: reject attendance on non-working academic calendar dates
+        from app.models.academic_calendar import AcademicCalendar
+        cal_entry = db.query(AcademicCalendar).filter(
+            AcademicCalendar.date == normalized_date
+        ).first()
+        if cal_entry and cal_entry.day_type != "WORKING_DAY":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"{normalized_date} is a {cal_entry.day_type} and cannot have attendance marked",
+            )
+
         # Req 16.2: persist check_in_time when provided
         check_in_time = getattr(payload, "check_in_time", None)
 
