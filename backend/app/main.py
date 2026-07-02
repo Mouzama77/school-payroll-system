@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
+from app.api.academic_calendar import router as academic_calendar_router
 from app.api.attendance import router as attendance_router
 from app.api.audit_logs import router as audit_logs_router
 from app.api.auth import router as auth_router
@@ -17,6 +18,7 @@ from app.api.leave import router as leave_router
 from app.api.overtime import router as overtime_router
 from app.api.payroll import router as payroll_router
 from app.api.users import router as users_router
+from app.api.academic_calendar import router as academic_calendar_router
 from app.core.config import settings
 from app.db.session import SessionLocal, engine
 
@@ -109,6 +111,7 @@ app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(users_router)
 app.include_router(departments_router)
 app.include_router(designations_router)
+app.include_router(academic_calendar_router)
 app.include_router(employee_router, prefix="/employees", tags=["Employees"])
 app.include_router(attendance_router, prefix="/attendance", tags=["Attendance"])
 app.include_router(payroll_router, prefix="/payroll", tags=["Payroll"])
@@ -116,6 +119,7 @@ app.include_router(overtime_router, prefix="/overtime", tags=["Overtime"])
 app.include_router(dashboard_router)
 app.include_router(leave_router)
 app.include_router(audit_logs_router)
+app.include_router(academic_calendar_router, prefix="/academic-calendar", tags=["Academic Calendar"])
 
 
 @app.get("/")

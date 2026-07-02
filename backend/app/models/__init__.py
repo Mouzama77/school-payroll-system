@@ -8,4 +8,6 @@ from .payroll import Payroll
 from .user import User
 from .audit_log import AuditLog
 from .late_penalty_rule import LatePenaltyRule
+from .academic_calendar import AcademicCalendar
 from .overtime_record import OvertimeRecord
+from .academic_calendar import AcademicCalendar
