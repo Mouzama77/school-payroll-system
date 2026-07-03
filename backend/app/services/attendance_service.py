@@ -254,6 +254,7 @@ class AttendanceService:
             "total_present": sum(r.status == AttendanceStatus.PRESENT for r in records),
             "total_absent": sum(r.status == AttendanceStatus.ABSENT for r in records),
             "total_half_days": sum(r.status == AttendanceStatus.HALF_DAY for r in records),
+            "total_late_days": sum(r.status == AttendanceStatus.LATE for r in records),
         }
 
         return MonthlyAttendanceResponse(

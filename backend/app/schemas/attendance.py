@@ -81,6 +81,7 @@ class AttendanceSummary(BaseModel):
     total_present: int
     total_absent: int
     total_half_days: int
+    total_late_days: int
 
 
 class MonthlyAttendanceResponse(BaseModel):

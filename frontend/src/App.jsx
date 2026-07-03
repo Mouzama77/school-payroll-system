@@ -10,6 +10,7 @@ import Attendance from './pages/Attendance'
 import ChangePassword from './pages/ChangePassword'
 import Dashboard from './pages/Dashboard'
 import Departments from './pages/Departments'
+import Designations from './pages/Designations'
 import Employees from './pages/Employees'
 import Forbidden from './pages/Forbidden'
 import ForgotPassword from './pages/ForgotPassword'
@@ -91,6 +92,16 @@ export default function App() {
           <RoleRoute allowedRoles={ROUTE_PERMISSIONS.departments}>
             <MustChangePasswordGuard>
               <Departments />
+            </MustChangePasswordGuard>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/designations"
+        element={
+          <RoleRoute allowedRoles={ROUTE_PERMISSIONS.designations}>
+            <MustChangePasswordGuard>
+              <Designations />
             </MustChangePasswordGuard>
           </RoleRoute>
         }
