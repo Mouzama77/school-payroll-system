@@ -140,6 +140,7 @@ export default function Attendance() {
   const [employeeId, setEmployeeId] = useState('')
   const [markDate, setMarkDate] = useState('')
   const [markStatus, setMarkStatus] = useState('PRESENT')
+  const [checkInTime, setCheckInTime] = useState('')
   const [markLoading, setMarkLoading] = useState(false)
 
   // Records panel
@@ -174,9 +175,14 @@ export default function Attendance() {
     e.preventDefault()
     setMarkLoading(true)
     try {
-      await markAttendance({ employee_id: employeeId, date: markDate, status: markStatus })
+      const payload = { employee_id: employeeId, date: markDate, status: markStatus }
+      if (markStatus === 'LATE' && checkInTime) {
+        payload.check_in_time = checkInTime
+      }
+      await markAttendance(payload)
       showToast('Attendance marked successfully')
       setMarkDate('')
+      setCheckInTime('')
     } catch (err) {
       showToast(err.response?.data?.detail || 'Failed to mark attendance', 'error')
     } finally {
@@ -243,7 +249,10 @@ export default function Attendance() {
               />
               <select
                 value={markStatus}
-                onChange={(e) => setMarkStatus(e.target.value)}
+                onChange={(e) => {
+                  setMarkStatus(e.target.value)
+                  if (e.target.value !== 'LATE') setCheckInTime('')
+                }}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
               >
                 {MARK_STATUS_OPTIONS.map((opt) => (
@@ -252,6 +261,19 @@ export default function Attendance() {
                   </option>
                 ))}
               </select>
+              {markStatus === 'LATE' && (
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-xs font-medium text-slate-700">
+                    Check-in time <span className="text-slate-400">(optional — used for deduction calculation)</span>
+                  </label>
+                  <input
+                    type="time"
+                    value={checkInTime}
+                    onChange={(e) => setCheckInTime(e.target.value)}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  />
+                </div>
+              )}
               <button
                 type="submit"
                 disabled={markLoading}
@@ -319,6 +341,7 @@ export default function Attendance() {
                     ['Present', records.summary.total_present, 'bg-green-100 text-green-800'],
                     ['Absent', records.summary.total_absent, 'bg-red-100 text-red-800'],
                     ['Half Days', records.summary.total_half_days, 'bg-yellow-100 text-yellow-800'],
+                    ['Late', records.summary.total_late_days, 'bg-orange-100 text-orange-800'],
                   ].map(([label, value, cls]) => (
                     <div key={label} className={`rounded-lg px-4 py-2 text-sm font-semibold ${cls}`}>
                       {label}: {value}

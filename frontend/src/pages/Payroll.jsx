@@ -16,12 +16,14 @@ const STATUS_BADGE = {
 
 function PayrollDetails({ payroll, onRecalculate, recalcLoading }) {
   const rows = [
-    ['Base Salary', formatCurrency(payroll.base_salary)],
-    ['Present Days', payroll.total_present],
-    ['Absent Days', payroll.total_absent],
-    ['Half Days', payroll.total_half_days],
-    ['Deductions', formatCurrency(payroll.total_deductions)],
-    ['Net Salary', formatCurrency(payroll.net_salary)],
+    ['Basic Salary', formatCurrency(payroll.base_salary ?? 0)],
+    ['Overtime Pay', formatCurrency(payroll.overtime_pay ?? 0)],
+    ['Absent Deduction', formatCurrency(payroll.absent_deductions ?? 0)],
+    ['Half-day Deduction', formatCurrency(payroll.half_day_deductions ?? 0)],
+    ['Leave Deduction', formatCurrency(payroll.leave_deductions ?? 0)],
+    ['Late Deduction', formatCurrency(payroll.late_deductions ?? 0)],
+    ['Total Deduction', formatCurrency(payroll.total_deductions ?? 0)],
+    ['Net Salary', formatCurrency(payroll.net_salary ?? 0)],
   ]
 
   return (
