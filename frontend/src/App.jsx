@@ -21,6 +21,7 @@ import MyLeaves from './pages/MyLeaves'
 import MyPayroll from './pages/MyPayroll'
 import MyProfile from './pages/MyProfile'
 import Payroll from './pages/Payroll'
+import Overtime from './pages/Overtime'
 import Register from './pages/Register'
 import Reports from './pages/Reports'
 import ResetPassword from './pages/ResetPassword'
@@ -132,6 +133,16 @@ export default function App() {
           <RoleRoute allowedRoles={ROUTE_PERMISSIONS.payroll}>
             <MustChangePasswordGuard>
               <Payroll />
+            </MustChangePasswordGuard>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/overtime"
+        element={
+          <RoleRoute allowedRoles={ROUTE_PERMISSIONS.overtime}>
+            <MustChangePasswordGuard>
+              <Overtime />
             </MustChangePasswordGuard>
           </RoleRoute>
         }
