@@ -13,6 +13,7 @@ class EmployeeCreate(BaseModel):
     joining_date: date
     department_id: UUID
     role_id: UUID
+    designation_id: UUID | None = None  # Req 13.4 — nullable, validated against designations
 
 
 class EmployeeUpdate(BaseModel):

@@ -7,6 +7,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.schemas.dashboard import (
     AdminDashboardStats,
+    DashboardInsights,
     EmployeeDashboardStats,
     HRDashboardStats,
     ReportsSummary,
@@ -48,3 +49,12 @@ def monthly_reports(
     current_user: User = Depends(require_roles(*MANAGEMENT_ROLES)),
 ):
     return DashboardService.get_reports_summary(db, month, year)
+
+
+@router.get("/insights", response_model=DashboardInsights)
+def insights(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(*MANAGEMENT_ROLES)),
+):
+    """AI-generated payroll/attendance insights from backend analytics."""
+    return DashboardService.get_insights(db)

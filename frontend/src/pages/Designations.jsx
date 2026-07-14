@@ -16,7 +16,8 @@ export default function Designations() {
   const load = async () => {
     setLoading(true)
     try {
-      setDesignations(await getDesignations())
+      const data = await getDesignations()
+      setDesignations(data)
     } catch (err) {
       showToast(err.response?.data?.detail || 'Failed to load designations', 'error')
     } finally {

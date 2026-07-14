@@ -1,12 +1,12 @@
 import { api } from './axios'
 
 export async function getEmployees() {
-  const { data } = await api.get('/employees/')
+  const { data } = await api.get('/employees')
   return data
 }
 
 export async function createEmployee(payload) {
-  const { data } = await api.post('/employees/', payload)
+  const { data } = await api.post('/employees', payload)
   return data
 }
 

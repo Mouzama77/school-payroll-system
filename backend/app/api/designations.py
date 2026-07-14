@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import require_roles
@@ -29,7 +30,7 @@ class DesignationResponse(BaseModel):
     description: str | None
 
 
-@router.post("/", response_model=DesignationResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=DesignationResponse, status_code=status.HTTP_201_CREATED)
 def create_designation(
     data: DesignationCreate,
     db: Session = Depends(get_db),
@@ -48,12 +49,19 @@ def create_designation(
         )
     desig = Designation(name=data.name.strip(), description=data.description)
     db.add(desig)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Designation with this name already exists",
+        )
     db.refresh(desig)
     return desig
 
 
-@router.get("/", response_model=list[DesignationResponse])
+@router.get("", response_model=list[DesignationResponse])
 def list_designations(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(*MANAGEMENT_ROLES)),

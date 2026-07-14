@@ -2,6 +2,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 
 from app.auth.hashing import hash_password, verify_password
 from app.auth.jwt import create_access_token
@@ -29,7 +30,11 @@ class AuthService:
             must_change_password=False,
         )
         db.add(user)
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            raise HTTPException(status_code=409, detail="Email already registered")
         db.refresh(user)
         return user
 
@@ -53,7 +58,11 @@ class AuthService:
             must_change_password=must_change_password,
         )
         db.add(user)
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            raise HTTPException(status_code=409, detail="Email already registered")
         db.refresh(user)
         return user
 

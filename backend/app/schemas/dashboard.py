@@ -48,3 +48,19 @@ class ReportsSummary(BaseModel):
     payrolls_generated: int
     total_payroll_amount: float
     employees: list[MonthlyReportItem]
+
+
+class InsightItem(BaseModel):
+    """A single AI-generated analytics insight for the dashboard."""
+
+    id: str
+    type: str  # attendance | leave | payroll | overtime | attention
+    severity: str  # info | warning | critical
+    title: str
+    detail: str
+    metric: float | None = None
+
+
+class DashboardInsights(BaseModel):
+    generated_at: datetime
+    insights: list[InsightItem]

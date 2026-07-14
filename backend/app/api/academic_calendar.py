@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, field_validator
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import require_roles
@@ -13,7 +14,7 @@ from app.db.session import get_db
 from app.models.academic_calendar import AcademicCalendar, VALID_DAY_TYPES
 from app.models.user import User
 
-router = APIRouter(prefix="/academic-calendar", tags=["Academic Calendar"])
+router = APIRouter(tags=["Academic Calendar"])
 
 
 class AcademicCalendarCreate(BaseModel):
@@ -42,7 +43,7 @@ class AcademicCalendarResponse(BaseModel):
 
 
 @router.post(
-    "/",
+    "",
     response_model=AcademicCalendarResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -66,12 +67,19 @@ def create_calendar_entry(
         description=data.description,
     )
     db.add(entry)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Calendar entry for {data.date} already exists",
+        )
     db.refresh(entry)
     return entry
 
 
-@router.get("/", response_model=list[AcademicCalendarResponse])
+@router.get("", response_model=list[AcademicCalendarResponse])
 def list_calendar_entries(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(ADMIN)),

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import date
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -176,19 +177,32 @@ class PayrollService:
 
     @staticmethod
     def _get_working_days(db: Session, month: int, year: int) -> int:
-        """Req 15.4, 15.5: Count WORKING_DAY entries for the month in academic_calendar.
-        Returns the count if > 0, else falls back to WORKING_DAYS (30)."""
+        """Req 15.4, 15.5: Count WORKING_DAY entries for the month in
+        academic_calendar. Returns the count when the calendar defines any
+        entries for the month; otherwise Sundays default to holidays
+        (Part 3) so working days are computed automatically without having
+        to create a calendar entry for every Sunday."""
+        import calendar as _calendar
+
         from app.models.academic_calendar import AcademicCalendar
-        count = (
+
+        entries = (
             db.query(AcademicCalendar)
             .filter(
-                AcademicCalendar.day_type == "WORKING_DAY",
                 extract("month", AcademicCalendar.date) == month,
                 extract("year", AcademicCalendar.date) == year,
             )
-            .count()
+            .all()
         )
-        return count if count > 0 else WORKING_DAYS
+        if entries:
+            working = sum(1 for e in entries if e.day_type == "WORKING_DAY")
+            return working if working > 0 else WORKING_DAYS
+
+        _, num_days = _calendar.monthrange(year, month)
+        sundays = sum(
+            1 for d in range(1, num_days + 1) if date(year, month, d).weekday() == 6
+        )
+        return max(1, num_days - sundays)
 
     @staticmethod
     def _to_response(payroll: Payroll) -> PayrollResponse:

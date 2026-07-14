@@ -3,6 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user, require_roles
@@ -36,7 +37,14 @@ def create_department(db: Session, department_data: DepartmentCreate) -> Departm
         description=department_data.description.strip() if department_data.description else None,
     )
     db.add(department)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Department with this name already exists",
+        )
     db.refresh(department)
     return department
 
@@ -77,7 +85,14 @@ def update_department(
             else None
         )
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Department with this name already exists",
+        )
     db.refresh(department)
     return department
 

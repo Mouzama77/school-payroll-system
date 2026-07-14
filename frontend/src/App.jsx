@@ -21,6 +21,7 @@ import MyLeaves from './pages/MyLeaves'
 import MyPayroll from './pages/MyPayroll'
 import MyProfile from './pages/MyProfile'
 import Payroll from './pages/Payroll'
+import AcademicCalendar from './pages/AcademicCalendar'
 import Overtime from './pages/Overtime'
 import Register from './pages/Register'
 import Reports from './pages/Reports'
@@ -133,6 +134,16 @@ export default function App() {
           <RoleRoute allowedRoles={ROUTE_PERMISSIONS.payroll}>
             <MustChangePasswordGuard>
               <Payroll />
+            </MustChangePasswordGuard>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/academic-calendar"
+        element={
+          <RoleRoute allowedRoles={ROUTE_PERMISSIONS.academicCalendar}>
+            <MustChangePasswordGuard>
+              <AcademicCalendar />
             </MustChangePasswordGuard>
           </RoleRoute>
         }

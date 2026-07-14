@@ -134,15 +134,20 @@ class AttendanceService:
         # ----------------------------
         # Case 2: new record
         # ----------------------------
-        # Req 15.3: reject attendance on non-working academic calendar dates
+        # Req 15.3: reject attendance on non-working academic calendar dates.
+        # Sundays default to holidays unless the admin explicitly marks the
+        # date as a WORKING_DAY (Part 3 — no need to create every Sunday).
         from app.models.academic_calendar import AcademicCalendar
+        from app.core.calender_rules import resolve_day_type
+
         cal_entry = db.query(AcademicCalendar).filter(
             AcademicCalendar.date == normalized_date
         ).first()
-        if cal_entry and cal_entry.day_type != "WORKING_DAY":
+        effective_type = resolve_day_type(normalized_date, cal_entry)
+        if effective_type != "WORKING_DAY":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"{normalized_date} is a {cal_entry.day_type} and cannot have attendance marked",
+                detail=f"{normalized_date} is a {effective_type} and cannot have attendance marked",
             )
 
         # Req 16.2: persist check_in_time when provided

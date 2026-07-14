@@ -219,7 +219,14 @@ export default function Attendance() {
     <SidebarLayout title="Attendance">
       {pageLoading && <LoadingSpinner />}
 
-      {!pageLoading && (
+      {!pageLoading && employees.length === 0 && (
+        <EmptyState
+          title="No employees yet"
+          description="Add employees before marking attendance. They will appear here automatically."
+        />
+      )}
+
+      {!pageLoading && employees.length > 0 && (
         <div className="space-y-8">
           {/* Mark attendance */}
           <section>

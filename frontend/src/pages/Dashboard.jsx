@@ -5,6 +5,7 @@ import {
   getAdminDashboard,
   getEmployeeDashboard,
   getHRDashboard,
+  getInsights,
   getReports,
 } from '../api/dashboard'
 import { getLeaves, getMyLeaves } from '../api/leaves'
@@ -112,6 +113,7 @@ export default function Dashboard() {
   const [leaves, setLeaves] = useState([])
   const [reports, setReports] = useState(null)
   const [recentLogs, setRecentLogs] = useState([])
+  const [insights, setInsights] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -125,19 +127,22 @@ export default function Dashboard() {
         let leaveData = []
         let reportData = null
         let logData = []
+        let insightData = []
 
         if (role === 'admin') {
-          ;[data, leaveData, reportData, logData] = await Promise.all([
+          ;[data, leaveData, reportData, logData, insightData] = await Promise.all([
             getAdminDashboard(),
             getLeaves(),
             getReports(month, year),
             getAuditLogs({ page: 1, page_size: 5 }).catch(() => []),
+            getInsights().catch(() => []),
           ])
         } else if (role === 'hr') {
-          ;[data, leaveData, reportData] = await Promise.all([
+          ;[data, leaveData, reportData, insightData] = await Promise.all([
             getHRDashboard(),
             getLeaves(),
             getReports(month, year),
+            getInsights().catch(() => []),
           ])
         } else {
           ;[data, leaveData] = await Promise.all([
@@ -151,6 +156,7 @@ export default function Dashboard() {
         setReports(reportData)
         const items = Array.isArray(logData) ? logData : (logData.items ?? [])
         setRecentLogs(items)
+        setInsights(Array.isArray(insightData) ? insightData : [])
       } catch (err) {
         setError(err.response?.data?.detail || 'Failed to load dashboard')
       } finally {
@@ -191,6 +197,48 @@ export default function Dashboard() {
               hint="Generated payrolls"
             />
           </div>
+
+          {/* AI Payroll Insights */}
+          {insights.length > 0 && (
+            <section className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-5 shadow-sm">
+              <div className="mb-3 flex items-center gap-2">
+                <span className="rounded-md bg-indigo-600 px-2 py-1 text-xs font-semibold text-white">
+                  AI
+                </span>
+                <h2 className="text-base font-semibold text-slate-900">
+                  Payroll Insights
+                </h2>
+              </div>
+              <ul className="space-y-3">
+                {insights.map((insight) => (
+                  <li
+                    key={insight.id}
+                    className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3"
+                  >
+                    <span
+                      className={`mt-0.5 flex-shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                        insight.severity === 'critical'
+                          ? 'bg-red-100 text-red-700'
+                          : insight.severity === 'warning'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-sky-100 text-sky-700'
+                      }`}
+                    >
+                      {insight.severity}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-900">
+                        {insight.title}
+                      </p>
+                      <p className="mt-0.5 text-sm text-slate-600">
+                        {insight.detail}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {/* Leave + attendance overview */}
           <div className="grid gap-4 lg:grid-cols-2">

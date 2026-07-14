@@ -21,3 +21,8 @@ export async function getReports(month, year) {
   })
   return data
 }
+
+export async function getInsights() {
+  const { data } = await api.get('/dashboard/insights')
+  return data
+}

@@ -2,6 +2,7 @@ from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import (
@@ -54,6 +55,20 @@ def create_employee(db: Session, employee_data: EmployeeCreate) -> Employee:
         role_id=employee_data.role_id,
     )
 
+    if employee_data.designation_id is not None:
+        from app.models.designation import Designation
+
+        desig = (
+            db.query(Designation)
+            .filter(Designation.id == employee_data.designation_id)
+            .first()
+        )
+        if not desig:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="designation_id does not exist",
+            )
+
     existing_employee = (
         db.query(Employee).filter(Employee.email == str(employee_data.email)).first()
     )
@@ -72,9 +87,17 @@ def create_employee(db: Session, employee_data: EmployeeCreate) -> Employee:
         join_date=employee_data.joining_date,
         department_id=employee_data.department_id,
         role_id=employee_data.role_id,
+        designation_id=employee_data.designation_id,
     )
     db.add(employee)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Employee with this email already exists",
+        )
     db.refresh(employee)
     return employee
 
@@ -146,7 +169,14 @@ def update_employee(
             )
         employee.designation_id = employee_data.designation_id
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Employee with this email already exists",
+        )
     db.refresh(employee)
     return employee
 
@@ -156,7 +186,7 @@ def delete_employee(db: Session, employee: Employee) -> None:
     db.commit()
 
 
-@router.post("/", response_model=EmployeeResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=EmployeeResponse, status_code=status.HTTP_201_CREATED)
 def create_employee_endpoint(
     employee_data: EmployeeCreate,
     db: Session = Depends(get_db),
@@ -165,7 +195,7 @@ def create_employee_endpoint(
     return create_employee(db=db, employee_data=employee_data)
 
 
-@router.get("/", response_model=List[EmployeeResponse])
+@router.get("", response_model=List[EmployeeResponse])
 def list_employees(
     skip: int = 0,
     limit: int = 100,

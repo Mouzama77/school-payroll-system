@@ -18,7 +18,6 @@ from app.api.leave import router as leave_router
 from app.api.overtime import router as overtime_router
 from app.api.payroll import router as payroll_router
 from app.api.users import router as users_router
-from app.api.academic_calendar import router as academic_calendar_router
 from app.core.config import settings
 from app.db.session import SessionLocal, engine
 
@@ -97,7 +96,16 @@ async def lifespan(app: FastAPI):
     # Shutdown: nothing to clean up at this stage
 
 
-app = FastAPI(title=settings.APP_NAME, lifespan=lifespan)
+app = FastAPI(
+    title=settings.APP_NAME,
+    lifespan=lifespan,
+    # Disable trailing-slash redirects. A 307 redirect to the absolute
+    # cross-origin backend URL (localhost:5173 -> localhost:8000) causes
+    # browsers to drop the Authorization header, producing a spurious 401
+    # that logs the user out. All routes are registered without a trailing
+    # slash, so we never rely on redirects.
+    redirect_slashes=False,
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -111,7 +119,6 @@ app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(users_router)
 app.include_router(departments_router)
 app.include_router(designations_router)
-app.include_router(academic_calendar_router)
 app.include_router(employee_router, prefix="/employees", tags=["Employees"])
 app.include_router(attendance_router, prefix="/attendance", tags=["Attendance"])
 app.include_router(payroll_router, prefix="/payroll", tags=["Payroll"])
