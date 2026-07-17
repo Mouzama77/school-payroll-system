@@ -11,3 +11,4 @@ from .late_penalty_rule import LatePenaltyRule
 from .academic_calendar import AcademicCalendar
 from .overtime_record import OvertimeRecord
 from .academic_calendar import AcademicCalendar
+from .password_reset_otp import PasswordResetOTP

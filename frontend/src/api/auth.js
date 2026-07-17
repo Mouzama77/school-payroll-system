@@ -19,6 +19,20 @@ export async function forgotPassword(email) {
   return data
 }
 
+export async function verifyOtp(email, otp) {
+  const { data } = await api.post('/auth/verify-otp', { email, otp })
+  return data
+}
+
+export async function resetPasswordWithOtp(email, resetToken, newPassword) {
+  const { data } = await api.post('/auth/reset-password-otp', {
+    email,
+    reset_token: resetToken,
+    new_password: newPassword,
+  })
+  return data
+}
+
 export async function resetPassword(token, newPassword) {
   const { data } = await api.post('/auth/reset-password', {
     token,

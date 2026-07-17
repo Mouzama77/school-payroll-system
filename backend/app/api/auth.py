@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, HTTPException
 import time
 from sqlalchemy.orm import Session
 
@@ -12,8 +12,13 @@ from app.schemas.auth import (
     LoginResponse,
     RegisterRequest,
     ResetPasswordRequest,
+    ResetPasswordWithOTPRequest,
+    VerifyOTPRequest,
+    VerifyOTPResponse,
 )
 from app.services.auth_service import AuthService
+from app.services.email_service import EmailService
+from app.services.otp_service import OTPService
 
 router = APIRouter()
 
@@ -55,9 +60,51 @@ async def login_user(
 @router.post("/forgot-password")
 async def forgot_password(
     payload: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
-    return AuthService.request_password_reset(db=db, email=str(payload.email))
+    """Start the OTP-based password reset.
+
+    Generates a secure 6-digit OTP, stores only its hash with a 10-minute
+    expiry, and dispatches the email asynchronously via BackgroundTasks.
+    Always returns a generic success message to prevent account enumeration.
+    """
+    result = OTPService.create_otp_for_email(db=db, email=str(payload.email))
+    if result is not None:
+        otp, to_email = result
+        background_tasks.add_task(
+            EmailService.send_password_reset_otp, to_email, otp
+        )
+    return {
+        "message": "If an account exists for this email, a verification code has been sent."
+    }
+
+
+@router.post("/verify-otp", response_model=VerifyOTPResponse)
+async def verify_otp(
+    payload: VerifyOTPRequest,
+    db: Session = Depends(get_db),
+):
+    """Verify the 6-digit OTP and return a short-lived reset token."""
+    reset_token = OTPService.verify_otp(
+        db=db, email=str(payload.email), otp=payload.otp
+    )
+    return {"message": "Code verified", "reset_token": reset_token}
+
+
+@router.post("/reset-password-otp")
+async def reset_password_otp(
+    payload: ResetPasswordWithOTPRequest,
+    db: Session = Depends(get_db),
+):
+    """Complete the reset using the post-verification reset token."""
+    OTPService.reset_password_with_token(
+        db=db,
+        email=str(payload.email),
+        reset_token=payload.reset_token,
+        new_password=payload.new_password,
+    )
+    return {"message": "Password reset successfully"}
 
 
 @router.post("/reset-password")
@@ -65,6 +112,7 @@ async def reset_password(
     payload: ResetPasswordRequest,
     db: Session = Depends(get_db),
 ):
+    """Legacy token-based reset (kept for backward compatibility)."""
     AuthService.reset_password(
         db=db,
         token=payload.token,
